@@ -1,0 +1,15 @@
+{
+  "dependencies": {
+    "concurrently": "^8.2.2",
+    "paypal-rest-sdk": "^1.8.1"
+  },
+  "scripts": {
+    "dev": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\" \"npm run dev --prefix frontend-admin\"",
+    "build:store": "npm run build --prefix frontend",
+    "build:admin": "npm run build --prefix frontend-admin",
+    "build:all": "concurrently \"npm run build --prefix frontend\" \"npm run build --prefix frontend-admin\"",
+    "start:store": "concurrently \"npm run start --prefix backend\" \"npm run start:prod --prefix frontend\"",
+    "start:admin": "concurrently \"npm run start --prefix backend\" \"npm run start:prod --prefix frontend-admin\"",
+    "start:all-prod": "concurrently \"npm run start --prefix backend\" \"npm run start:prod --prefix frontend\" \"npm run start:prod --prefix frontend-admin\""
+  }
+}

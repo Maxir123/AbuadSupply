@@ -9,7 +9,7 @@ const Coupons = () => {
       <DashboardHeader />
 
       <div className="flex flex-1 overflow-hidden bg-gray-100">
-        <div className="w-[100px] 800px:w-[330px] bg-white  ">
+              <div className="hidden 800px:block">
           <DashboardSideBar active={9} />
         </div>
 

@@ -1,63 +1,142 @@
 import React, { useEffect, useState } from "react";
-
-// Third-party library imports
-import { AiOutlineDelete, AiOutlineEdit, AiOutlineEye } from "react-icons/ai";
 import { useDispatch, useSelector } from "react-redux";
-import { Button, Card, CardContent, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Divider,Typography,} from "@mui/material";
-import { Tooltip, Switch } from "@mui/material";
-import { toast } from "react-toastify";
+import {
+  Box,
+  Paper,
+  Typography,
+  Button,
+  TextField,
+  Tooltip,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Card,
+  CardContent,
+  Divider,
+  Chip,
+  InputAdornment,
+  CircularProgress,
+  useMediaQuery,
+  useTheme,
+  Switch,
+} from "@mui/material";
+import { DataGrid } from "@mui/x-data-grid";
+import { AiOutlineDelete, AiOutlineEdit, AiOutlineEye, AiOutlineSearch } from "react-icons/ai";
 import { format } from "date-fns";
-
-// Local imports
-import { fetchAllVendors, blockVendor, unblockVendor, fetchVendorById, updateVendor, deleteVendor} from "@/redux/adminSlice";
-import EditProductModal from "../common/ProductEditModal";
-import ProductTable from "../common/ProductTable";
-import SearchProducts from "../common/SearchProducts";
-import Loader from "./layout/Loader";
+import { toast } from "react-toastify";
 import Image from "next/image";
 
+import { fetchAllVendors, blockVendor, unblockVendor, fetchVendorById, updateVendor, deleteVendor } from "@/redux/adminSlice";
+import EditProductModal from "../common/ProductEditModal";
+import Loader from "./layout/Loader";
+
+// Nigerian Naira formatter (kept for consistency, though not used in vendors)
+const formatNaira = (amount) => {
+  return new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    minimumFractionDigits: 2,
+  }).format(amount);
+};
+
+// Mobile Vendor Card
+const MobileVendorCard = ({ vendor, onEdit, onDelete, onView, onStatusToggle }) => {
+  const isBlocked = vendor.isBlocked;
+  const statusLabel = isBlocked ? "Blocked" : "Active";
+  const statusColor = isBlocked ? "error" : "success";
+
+  return (
+    <Card
+      sx={{
+        mb: 2,
+        borderRadius: 2,
+        boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+        "&:hover": { boxShadow: "0 2px 6px rgba(0,0,0,0.1)" },
+      }}
+    >
+      <CardContent sx={{ p: 2 }}>
+        <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+          {vendor.name}
+        </Typography>
+        <Typography variant="body2" color="text.secondary" gutterBottom>
+          Email: {vendor.email}
+        </Typography>
+        <Typography variant="body2" color="text.secondary" gutterBottom>
+          Phone: {vendor.phoneNumber}
+        </Typography>
+        <Typography variant="body2" color="text.secondary" gutterBottom>
+          Joined: {format(new Date(vendor.registrationDate), "MMM dd, yyyy")}
+        </Typography>
+
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 1 }}>
+          <Chip label={statusLabel} size="small" color={statusColor} variant="outlined" />
+          <Switch
+            checked={!isBlocked}
+            onChange={() => onStatusToggle(vendor.id, isBlocked)}
+            color="primary"
+            size="small"
+          />
+        </Box>
+
+        <Box sx={{ display: "flex", gap: 1, justifyContent: "flex-end", mt: 2 }}>
+          <Tooltip title="Edit">
+            <IconButton size="small" color="primary" onClick={() => onEdit(vendor)}>
+              <AiOutlineEdit size={18} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Delete">
+            <IconButton size="small" color="error" onClick={() => onDelete(vendor.id)}>
+              <AiOutlineDelete size={18} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="View Details">
+            <IconButton size="small" color="info" onClick={() => onView(vendor.id)}>
+              <AiOutlineEye size={18} />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      </CardContent>
+    </Card>
+  );
+};
+
 const AllVendorsTable = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const dispatch = useDispatch();
 
-  const { isLoading, error, adminInfo, vendors, singleVendor } = useSelector( (state) => state.admin);
+  const { isLoading, error, adminInfo, vendors, singleVendor } = useSelector((state) => state.admin);
   const [filteredVendors, setFilteredVendors] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [openViewModal, setOpenViewModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
-  const [updatedVendor, setUpdatedVendor] = useState({ name: "", email: "", contactNumber: "" });
+  const [updatedVendor, setUpdatedVendor] = useState({ name: "", email: "", phoneNumber: "" });
   const [selectedVendorId, setSelectedVendorId] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-      if (adminInfo) {
-        dispatch(fetchAllVendors());
-      }
-    }, [dispatch, adminInfo]);
+    if (adminInfo) {
+      dispatch(fetchAllVendors());
+    }
+  }, [dispatch, adminInfo]);
 
   useEffect(() => {
     let filtered = [...vendors];
-
     if (searchQuery) {
-      const lowerCaseQuery = searchQuery.toLowerCase();
-
-      filtered = filtered.filter((vendor) => {
-        const vendorName = vendor?.name?.toLowerCase();
-        const vendorId = vendor?._id?.toLowerCase();
-        const email = vendor?.email?.toLowerCase();
-
-        return (
-          vendorName?.includes(lowerCaseQuery) ||
-          vendorId?.includes(lowerCaseQuery) ||
-          email?.includes(lowerCaseQuery)
-        );
-      });
+      const lower = searchQuery.toLowerCase();
+      filtered = filtered.filter((vendor) =>
+        (vendor?.name?.toLowerCase() || "").includes(lower) ||
+        (vendor?._id?.toLowerCase() || "").includes(lower) ||
+        (vendor?.email?.toLowerCase() || "").includes(lower)
+      );
     }
     setFilteredVendors(filtered);
   }, [searchQuery, vendors]);
 
-  const handleSearchChange = (e) => {
-    setSearchQuery(e.target.value);
-  };
+  const handleSearchChange = (e) => setSearchQuery(e.target.value);
 
   const handleVendorEdit = (vendor) => {
     setSelectedVendorId(vendor.id);
@@ -68,199 +147,159 @@ const AllVendorsTable = () => {
     });
     setOpenEditModal(true);
   };
-  
-  const handleEditModalClose = () => {
-    setOpenEditModal(false);
-  };
+
+  const handleEditModalClose = () => setOpenEditModal(false);
 
   const handleDeleteConfirmation = (vendorId) => {
-    setSelectedVendorId(vendorId);            
+    setSelectedVendorId(vendorId);
     setOpenDeleteDialog(true);
   };
 
   const handleDeleteVendor = async () => {
+    setIsSubmitting(true);
     const result = await dispatch(deleteVendor(selectedVendorId));
     if (result.type === "admin/deleteVendor/fulfilled") {
       toast.success("Vendor deleted!");
+      dispatch(fetchAllVendors());
     } else {
       toast.error("Failed to delete vendor.");
     }
     setOpenDeleteDialog(false);
+    setIsSubmitting(false);
   };
 
   const handleStatusToggle = async (id, isBlocked) => {
+    setIsSubmitting(true);
     if (isBlocked) {
-      // If vendor is blocked, unblock them
       const result = await dispatch(unblockVendor(id));
       if (result.type === "admin/unblockVendor/fulfilled") {
-        toast.success("Vendor unblocked successfully!");
+        toast.success("Vendor unblocked!");
+        dispatch(fetchAllVendors());
       } else {
         toast.error("Failed to unblock vendor.");
       }
     } else {
-      // If vendor is active, block them
       const result = await dispatch(blockVendor(id));
       if (result.type === "admin/blockVendor/fulfilled") {
-        toast.success("Vendor blocked successfully!");
+        toast.success("Vendor blocked!");
+        dispatch(fetchAllVendors());
       } else {
         toast.error("Failed to block vendor.");
       }
     }
+    setIsSubmitting(false);
   };
 
   const handleViewVendor = async (vendorId) => {
+    setIsSubmitting(true);
     const result = await dispatch(fetchVendorById(vendorId));
-    if (result.type === "admin/fetchVendorById/fulfilled") setOpenViewModal(true);
-    else toast.error("Failed to fetch vendor details.");
+    if (result.type === "admin/fetchVendorById/fulfilled") {
+      setOpenViewModal(true);
+    } else {
+      toast.error("Failed to fetch vendor details.");
+    }
+    setIsSubmitting(false);
   };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setUpdatedVendor((prevState) => ({
-      ...prevState,
-      [name]: value,
-    }));
+    setUpdatedVendor((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleUpdateVendor = async () => {
+    setIsSubmitting(true);
     try {
       const result = await dispatch(
         updateVendor({
-          id: selectedVendorId, 
-          updatedVendor: updatedVendor, // Updated vendor data from the form
+          id: selectedVendorId,
+          updatedVendor: updatedVendor,
         })
       );
       if (result.type === "admin/updateVendor/fulfilled") {
-        toast.success("Vendor updated successfully!");
-        dispatch(fetchAllVendors()); 
-        setOpenEditModal(false); 
+        toast.success("Vendor updated!");
+        dispatch(fetchAllVendors());
+        setOpenEditModal(false);
       } else {
-        toast.error("Failed to update the vendor.");
+        toast.error("Failed to update vendor.");
       }
-    } catch (error) {
+    } catch {
       toast.error("An unexpected error occurred.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  //Table columns and row
+  // DataGrid columns (desktop)
   const columns = [
     {
       field: "id",
       headerName: "ID",
-      minWidth: 150,
+      minWidth: 120,
       flex: 1,
-      renderCell: (params) => {
-        const id = params.value;
-        const lastSixDigits = id.slice(-6);
-        return <span>{`...${lastSixDigits}`}</span>;
-      },
+      renderCell: ({ value }) => `...${value.slice(-6)}`,
     },
     {
       field: "registrationDate",
-      headerName: "REG DATE",
-      minWidth: 180,
+      headerName: "Reg Date",
+      minWidth: 140,
       flex: 1,
-      renderCell: (params) => {
-        const formattedDate = format(new Date(params.value), "MMM dd, yyyy ");
-        return <span>{formattedDate}</span>;
-      },
+      renderCell: ({ value }) => format(new Date(value), "MMM dd, yyyy"),
     },
-    {
-      field: "name",
-      headerName: "NAME",
-      minWidth: 200,
-      flex: 1,
-    },
-    {
-      field: "email",
-      headerName: "EMAIL",
-      minWidth: 250,
-      flex: 1,
-    },
-    {
-      field: "phoneNumber",
-      headerName: "PHONE",
-      minWidth: 150,
-      flex: 1,
-    },
+    { field: "name", headerName: "Name", minWidth: 180, flex: 1.5 },
+    { field: "email", headerName: "Email", minWidth: 220, flex: 2 },
+    { field: "phoneNumber", headerName: "Phone", minWidth: 140, flex: 1 },
     {
       field: "status",
-      headerName: "STATUS",
-      minWidth: 180,
-      flex: 1,
-      renderCell: (params) => (
-        <div style={{ display: "flex", justifyContent: "center" }}>
-          <Tooltip title={params.row.isBlocked ? "Inactive" : "Active"}>
-            <Switch
-              checked={!params.row.isBlocked} 
-              onChange={() => handleStatusToggle(params.row.id, params.row.isBlocked) }
-              disabled={!!params.row.isApproved}
-            />
-          </Tooltip>
-        </div>
+      headerName: "Status",
+      minWidth: 100,
+      flex: 0.7,
+      renderCell: ({ row }) => (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Chip
+            label={row.isBlocked ? "Blocked" : "Active"}
+            size="small"
+            color={row.isBlocked ? "error" : "success"}
+            variant="outlined"
+          />
+          <Switch
+            checked={!row.isBlocked}
+            onChange={() => handleStatusToggle(row.id, row.isBlocked)}
+            color="primary"
+            size="small"
+          />
+        </Box>
       ),
     },
     {
       field: "actions",
-      headerName: "ACTIONS",
-      minWidth: 200,
-      flex: 1,
+      headerName: "Actions",
+      minWidth: 120,
+      flex: 0.8,
+      sortable: false,
       renderCell: (params) => (
-        <div
-          style={{
-            paddingTop: "13px",
-            display: "flex",
-            justifyContent: "flex-start",
-            gap: "10px",
-            flexWrap: "wrap",
-          }}
-        >
-          {/* Edit Button with Tooltip */}
+        <Box sx={{ display: "flex", gap: 1 }}>
           <Tooltip title="Edit">
-            <Button
-              variant="contained"
-              color="primary"
-              size="small"
-              onClick={() => handleVendorEdit(params.row)}
-              style={{ minWidth: "auto", padding: "6px 12px" }}
-            >
-              <AiOutlineEdit size={16} />
-            </Button>
+            <IconButton size="small" color="primary" onClick={() => handleVendorEdit(params.row)}>
+              <AiOutlineEdit size={18} />
+            </IconButton>
           </Tooltip>
-
-          {/* Delete Button with Tooltip */}
           <Tooltip title="Delete">
-            <Button
-              variant="contained"
-              color="error"
-              size="small"
-              onClick={() => handleDeleteConfirmation(params.row.id)}
-              style={{ minWidth: "auto", padding: "6px 12px" }}
-            >
-              <AiOutlineDelete size={16} />
-            </Button>
+            <IconButton size="small" color="error" onClick={() => handleDeleteConfirmation(params.row.id)}>
+              <AiOutlineDelete size={18} />
+            </IconButton>
           </Tooltip>
-
-          {/* Approve Button with Tooltip */}
-          {!params.row.isApproved && (
-            <Tooltip title="View Vendor Details">
-              <Button
-                variant="contained"
-                color="info"
-                size="small"
-                onClick={() => handleViewVendor(params.row.id)}
-                style={{ minWidth: "auto", padding: "6px 12px" }}
-              >
-                <AiOutlineEye size={16} />
-              </Button>
-            </Tooltip>
-          )}
-        </div>
+          <Tooltip title="View">
+            <IconButton size="small" color="info" onClick={() => handleViewVendor(params.row.id)}>
+              <AiOutlineEye size={18} />
+            </IconButton>
+          </Tooltip>
+        </Box>
       ),
     },
   ];
+
   const rows = filteredVendors.map((vendor) => ({
-    id: vendor._id, 
+    id: vendor._id,
     registrationDate: vendor.createdAt,
     name: vendor.name,
     email: vendor.email,
@@ -268,156 +307,235 @@ const AllVendorsTable = () => {
     isBlocked: vendor.isBlocked,
   }));
 
+  if (isLoading) return <Loader />;
+  if (error) return <Box sx={{ p: 3 }}><Typography color="error">{String(error)}</Typography></Box>;
+
   return (
-    <div className="w-full min-h-screen overflow-hidden">
-      {isLoading ? (
-        <Loader /> 
-        ) : error ? (
-          <div className="p-6 text-red-600">{String(error)}</div>
-        ) : (
-        <div className="w-full p-4 md:p-8 rounded-md">
-          <div className="flex items-center mb-6">
-            <h1 className="text-2xl font-semibold">Vendors List</h1>
-            <span className="ml-2 bg-gray-200 text-gray-700 text-sm font-medium px-2.5 py-0.5 rounded-full">
-              {vendors?.length || 0}
-            </span>
-          </div>
-
-          {/* Search Section */}
-          <div className="mb-4">
-            <SearchProducts searchQuery={searchQuery} handleSearchChange={handleSearchChange}/>
-          </div>
-
-           {/* Data Table */}
-           <div className="bg-white p-6 rounded-lg shadow mb-6">
-            <ProductTable rows={rows} columns={columns} />
-          </div>
-        </div>
-      )}
-
-      {/* Vendor Details Modal */}
-      <Dialog
-        open={openViewModal}
-        onClose={() =>  setOpenViewModal(false)}
-        maxWidth="lg"
-        fullWidth
+    <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, bgcolor: "#f5f5f5", minHeight: "100vh" }}>
+      {/* Header */}
+      <Paper
+        elevation={0}
+        sx={{
+          p: 3,
+          mb: 3,
+          borderRadius: 3,
+          bgcolor: "white",
+          border: "1px solid",
+          borderColor: "grey.100",
+        }}
       >
-        <DialogTitle style={{ fontWeight: "bold" }}>{singleVendor?.name ? `Details for ${singleVendor.name}` : "Vendor Details"}</DialogTitle>
-        <DialogContent>
-          {singleVendor ? (
-            <div>
-              {/* Vendor Name and Information */}
-              <Card style={{ marginBottom: "20px" }}>
-                <CardContent>
-                  <Typography variant="h6">
-                    Vendor Name: {singleVendor.name}
-                  </Typography>
-                  <Divider style={{ margin: "10px 0" }} />
-                  <Typography variant="body2" color="textSecondary">
-                    <strong>Email:</strong> {singleVendor.email}
-                  </Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    <strong>Phone:</strong> {singleVendor.phoneNumber}
-                  </Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    <strong>Address:</strong> {singleVendor.address}
-                  </Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    <strong>Zip Code:</strong> {singleVendor.zipCode}
-                  </Typography>
-                </CardContent>
-              </Card>
-
-              {/* Vendor Avatar */}
-              <Card style={{ marginBottom: "20px" }}>
-                <CardContent>
-                  <Typography variant="h6">Vendor Avatar</Typography>
-                  <Divider style={{ margin: "10px 0" }} />
-                  <Image
-                    src={singleVendor?.avatar?.url || "/images/avatar-placeholder.png"}
-                    alt={`${singleVendor?.name || "Vendor"} Avatar`}
-                    width={100}
-                    height={100}
-                    className="rounded-full object-cover"
-                  />
-                </CardContent>
-              </Card>
-
-              {/* Vendor Approval Status */}
-              <Card style={{ marginBottom: "20px" }}>
-                <CardContent>
-                  <Typography variant="h6">Vendor Approval Status</Typography>
-                  <Divider style={{ margin: "10px 0" }} />
-                  <Typography variant="body2">
-                    <strong>Approved:</strong>{" "}
-                    {singleVendor.isApproved ? "Yes" : "No"}
-                  </Typography>
-                  <Typography variant="body2">
-                    <strong>Blocked:</strong>{" "}
-                    {singleVendor.isBlocked ? "Yes" : "No"}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </div>
-          ) : (
-            <div
-              style={{
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 2 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Box
+              sx={{
+                width: 40,
+                height: 40,
+                borderRadius: 2,
+                bgcolor: "primary.light",
                 display: "flex",
+                alignItems: "center",
                 justifyContent: "center",
-                padding: "20px",
               }}
             >
-              <CircularProgress />
-            </div>
-          )}
-        </DialogContent>
+              <i className="fas fa-store text-xl text-primary" />
+            </Box>
+            <Typography variant="h5" fontWeight="bold">
+              Vendors
+            </Typography>
+            <Chip label={vendors?.length || 0} size="small" color="primary" />
+          </Box>
+        </Box>
+      </Paper>
 
-        <DialogActions>
-          <Button
-            onClick={() => setOpenViewModal(false)}
-            color="primary"
-            variant="contained"
-          >
-            Close
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* Search */}
+      <Paper
+        elevation={0}
+        sx={{
+          p: 2,
+          mb: 3,
+          borderRadius: 3,
+          bgcolor: "white",
+          border: "1px solid",
+          borderColor: "grey.100",
+        }}
+      >
+        <TextField
+          fullWidth
+          variant="outlined"
+          placeholder="Search by name, email, or ID..."
+          value={searchQuery}
+          onChange={handleSearchChange}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <AiOutlineSearch size={20} color="#9ca3af" />
+              </InputAdornment>
+            ),
+            sx: { borderRadius: 2 },
+          }}
+        />
+      </Paper>
+
+      {/* Content: DataGrid or mobile cards */}
+      {isMobile ? (
+        <Box sx={{ display: "flex", flexDirection: "column" }}>
+          {filteredVendors.length === 0 ? (
+            <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", py: 4 }}>
+              No vendors found.
+            </Typography>
+          ) : (
+            filteredVendors.map((vendor) => (
+              <MobileVendorCard
+                key={vendor._id}
+                vendor={{
+                  id: vendor._id,
+                  name: vendor.name,
+                  email: vendor.email,
+                  phoneNumber: vendor.phoneNumber,
+                  registrationDate: vendor.createdAt,
+                  isBlocked: vendor.isBlocked,
+                }}
+                onEdit={handleVendorEdit}
+                onDelete={handleDeleteConfirmation}
+                onView={handleViewVendor}
+                onStatusToggle={handleStatusToggle}
+              />
+            ))
+          )}
+        </Box>
+      ) : (
+        <Paper
+          elevation={0}
+          sx={{
+            borderRadius: 3,
+            overflow: "auto",
+            border: "1px solid",
+            borderColor: "grey.100",
+            bgcolor: "white",
+          }}
+        >
+          <Box sx={{ minWidth: "100%" }}>
+            <DataGrid
+              rows={rows}
+              columns={columns}
+              pageSize={10}
+              rowsPerPageOptions={[10, 25, 50]}
+              autoHeight
+              disableSelectionOnClick
+              sx={{
+                border: "none",
+                "& .MuiDataGrid-columnHeaders": {
+                  backgroundColor: "#fafafa",
+                  borderBottom: "1px solid #e5e7eb",
+                  fontSize: "0.875rem",
+                  fontWeight: 600,
+                },
+                "& .MuiDataGrid-cell": {
+                  borderBottom: "1px solid #f3f4f6",
+                  py: 1.5,
+                },
+                "& .MuiDataGrid-row:hover": {
+                  backgroundColor: "#f9fafb",
+                },
+              }}
+            />
+          </Box>
+        </Paper>
+      )}
 
       {/* Edit Vendor Modal */}
-      <EditProductModal 
+      <EditProductModal
         open={openEditModal}
         onClose={handleEditModalClose}
         data={updatedVendor}
         onInputChange={handleInputChange}
         onSave={handleUpdateVendor}
-        isVendorEdit={true} 
+        isVendorEdit={true}
       />
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog
-        open={openDeleteDialog}
-        onClose={() => setOpenDeleteDialog(false)}
-        aria-labelledby="alert-dialog-title"
-        aria-describedby="alert-dialog-description"
-      >
-        <DialogTitle id="alert-dialog-title">{"Confirm Deletion"}</DialogTitle>
-        <DialogContent>
-          <p>Are you sure you want to delete this vendor?</p>
+      {/* View Vendor Modal */}
+      <Dialog open={openViewModal} onClose={() => setOpenViewModal(false)} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+        <DialogTitle sx={{ fontWeight: "bold" }}>
+          {singleVendor?.name ? `Details for ${singleVendor.name}` : "Vendor Details"}
+        </DialogTitle>
+        <DialogContent dividers>
+          {!singleVendor ? (
+            <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <Box>
+              <Card variant="outlined" sx={{ mb: 2 }}>
+                <CardContent>
+                  <Typography variant="h6">{singleVendor.name}</Typography>
+                  <Divider sx={{ my: 1 }} />
+                  <Typography variant="body2">
+                    <strong>Email:</strong> {singleVendor.email}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Phone:</strong> {singleVendor.phoneNumber}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Address:</strong> {singleVendor.address || "N/A"}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Zip Code:</strong> {singleVendor.zipCode || "N/A"}
+                  </Typography>
+                </CardContent>
+              </Card>
+
+              <Card variant="outlined" sx={{ mb: 2 }}>
+                <CardContent>
+                  <Typography variant="h6">Avatar</Typography>
+                  <Divider sx={{ my: 1 }} />
+                  <Image
+                    src={singleVendor.avatar?.url || "/images/avatar-placeholder.png"}
+                    alt={`${singleVendor.name} Avatar`}
+                    width={80}
+                    height={80}
+                    style={{ borderRadius: "50%", objectFit: "cover" }}
+                  />
+                </CardContent>
+              </Card>
+
+              <Card variant="outlined">
+                <CardContent>
+                  <Typography variant="h6">Approval Status</Typography>
+                  <Divider sx={{ my: 1 }} />
+                  <Typography variant="body2">
+                    <strong>Approved:</strong> {singleVendor.isApproved ? "Yes" : "No"}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Blocked:</strong> {singleVendor.isBlocked ? "Yes" : "No"}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Box>
+          )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenDeleteDialog(false)} color="secondary">
-            Cancel
-          </Button>
-          <Button
-            onClick={handleDeleteVendor}
-            color="error"
-            variant="contained"
-          >
-            Delete
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setOpenViewModal(false)} variant="contained">
+            Close
           </Button>
         </DialogActions>
       </Dialog>
-    </div>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={openDeleteDialog} onClose={() => setOpenDeleteDialog(false)} PaperProps={{ sx: { borderRadius: 3 } }}>
+        <DialogTitle sx={{ fontWeight: "bold" }}>Confirm Deletion</DialogTitle>
+        <DialogContent>
+          <Typography>Are you sure you want to delete this vendor? This action cannot be undone.</Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setOpenDeleteDialog(false)} color="inherit">
+            Cancel
+          </Button>
+          <Button onClick={handleDeleteVendor} color="error" variant="contained" disabled={isSubmitting}>
+            {isSubmitting ? <CircularProgress size={24} /> : "Delete"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 };
 

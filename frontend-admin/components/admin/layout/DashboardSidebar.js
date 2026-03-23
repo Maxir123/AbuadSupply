@@ -1,24 +1,27 @@
 import React from "react";
-import { AiOutlineGift } from "react-icons/ai";
+import {
+  MdOutlineDashboard,
+  MdCategory,
+} from "react-icons/md";
 import { FiPackage, FiShoppingBag } from "react-icons/fi";
-import { MdOutlineDashboard } from "react-icons/md";
 import { CiBank, CiMoneyBill, CiSettings } from "react-icons/ci";
 import { BiMessageSquareDetail } from "react-icons/bi";
-import { HiOutlineReceiptRefund } from "react-icons/hi";
+import { HiOutlineReceiptRefund, HiOutlineCollection } from "react-icons/hi";
 import { LuLogOut } from "react-icons/lu";
+import { IoMdPeople } from "react-icons/io";
+import { FaStoreAlt } from "react-icons/fa";
+import { AiOutlineGift } from "react-icons/ai";
+import { RiSubscript2 } from "react-icons/ri";
 import Link from "next/link";
 import { useDispatch } from "react-redux";
 import { useRouter } from "next/router";
 import { toast } from "react-toastify";
-import {  IoMdPeople } from "react-icons/io";
-import { FaStoreAlt } from "react-icons/fa";
 import { logoutAdmin } from "@/redux/adminSlice";
 
 const DashboardSideBar = ({ active }) => {
   const router = useRouter();
   const dispatch = useDispatch();
 
-  //logout vendor
   const handleAdminLogout = async () => {
     try {
       await dispatch(logoutAdmin()).unwrap();
@@ -29,140 +32,81 @@ const DashboardSideBar = ({ active }) => {
       console.error("Logout Error:", error);
     }
   };
-  
+
+  const navItems = [
+    { id: 1, href: "/dashboard", icon: MdOutlineDashboard, label: "Dashboard" },
+    { id: 2, href: "/customers", icon: IoMdPeople, label: "Customers" },
+    { id: 3, href: "/vendors", icon: FaStoreAlt, label: "Vendors" },
+    { id: 4, href: "/orders", icon: FiShoppingBag, label: "Orders" },
+    { id: 5, href: "/products", icon: FiPackage, label: "Products" },
+    { id: 6, href: "/categories", icon: MdCategory, label: "Categories" },
+    { id: 7, href: "/subcategories", icon: RiSubscript2, label: "Subcategories" },
+    { id: 8, href: "/sub-subcategories", icon: HiOutlineCollection, label: "Sub-subcategories" },
+    { id: 9, href: "/coupons", icon: AiOutlineGift, label: "Coupons" },
+    { id: 10, href: "/sales", icon: CiMoneyBill, label: "Sales" },
+    { id: 11, href: "/refunds", icon: HiOutlineReceiptRefund, label: "Refunds" },
+    { id: 12, href: "/inbox", icon: BiMessageSquareDetail, label: "Inbox" },
+    { id: 13, href: "/bank", icon: CiBank, label: "Bank" },
+    { id: 14, href: "/settings", icon: CiSettings, label: "Settings" },
+  ];
+
   return (
-    <div className="w-full h-[94vh] bg-white shadow-sm overflow-y-scroll sticky top-0 left-0 z-10 flex flex-col justify-between">
-     <div className="flex-grow">
-        {/* Sidebar Items */}
-        <div className="w-full flex items-center p-4">
-          <Link href="/dashboard" className="w-full flex items-center">
-            <MdOutlineDashboard
-              size={30}
-              color={`${active === 1 ? "crimson" : "#555"}`}
-            />
-            <h5
-              className={`pl-2 text-[18px] font-[400] ${
-                active === 1 ? "text-[crimson]" : "text-[#555]"
-              } hidden 800px:block`}
-            >
-              Dashboard
-            </h5>
-          </Link>
-        </div>
-        <div className="w-full flex items-center p-4">
-          <Link href="/customers" className="w-full flex items-center">
-            <IoMdPeople size={30} color={active === 2 ? "crimson" : "#555"} />
-            <h5 className={`pl-2 text-[18px] font-[400] ${active === 2 ? "text-[crimson]" : "text-[#555]"} hidden 800px:block`}>
-              Customers
-            </h5>
-          </Link>
-        </div>
-        <div className="w-full flex items-center p-4">
-          <Link href="/vendors" className="w-full flex items-center">
-            <FaStoreAlt size={30} color={active === 3 ? "crimson" : "#555"} />
-            <h5 className={`pl-2 text-[18px] font-[400] ${active === 3 ? "text-[crimson]" : "text-[#555]"} hidden 800px:block`}>
-              Vendors
-            </h5>
-          </Link>
-        </div>
-        <div className="w-full flex items-center p-4">
-          <Link href="/orders" className="w-full flex items-center">
-            <FiShoppingBag size={30} color={active === 4 ? "crimson" : "#555"} />
-            <h5 className={`pl-2 text-[18px] font-[400] ${active === 4 ? "text-[crimson]" : "text-[#555]"} hidden 800px:block`}>
-              Orders
-            </h5>
-          </Link>
-        </div>
-        <div className="w-full flex items-center p-4">
-          <Link href="/products" className="w-full flex items-center">
-            <FiPackage size={30} color={active === 5 ? "crimson" : "#555"} />
-            <h5 className={`pl-2 text-[18px] font-[400] ${active === 5 ? "text-[crimson]" : "text-[#555]"} hidden 800px:block`}>
-              Products
-            </h5>
-          </Link>
-        </div>
-        <div className="w-full flex items-center p-4">
-          <Link href="/categories" className="w-full flex items-center">
-            <AiOutlineGift size={30} color={active === 6 ? "crimson" : "#555"} />
-            <h5 className={`pl-2 text-[18px] font-[400] ${active === 6 ? "text-[crimson]" : "text-[#555]"} hidden 800px:block`}>
-              Categories
-            </h5>
-          </Link>
-        </div>
-        <div className="w-full flex items-center p-4">
-          <Link href="/subcategories" className="w-full flex items-center">
-            <AiOutlineGift size={30} color={active === 7 ? "crimson" : "#555"} />
-            <h5 className={`pl-2 text-[18px] font-[400] ${active === 7 ? "text-[crimson]" : "text-[#555]"} hidden 800px:block`}>
-              SubCategories
-            </h5>
-          </Link>
-        </div>
-        <div className="w-full flex items-center p-4">
-          <Link href="/sub-subcategories" className="w-full flex items-center">
-            <AiOutlineGift size={30} color={active === 8 ? "crimson" : "#555"} />
-            <h5 className={`pl-2 text-[18px] font-[400] ${active === 8 ? "text-[crimson]" : "text-[#555]"} hidden 800px:block`}>
-              Sub-SubCategories
-            </h5>
-          </Link>
-        </div>
-        <div className="w-full flex items-center p-4">
-          <Link href="/coupons" className="w-full flex items-center">
-            <AiOutlineGift size={30} color={active === 9 ? "crimson" : "#555"} />
-            <h5 className={`pl-2 text-[18px] font-[400] ${active === 9 ? "text-[crimson]" : "text-[#555]"} hidden 800px:block`}>
-              Coupons
-            </h5>
-          </Link>
-        </div>
-        <div className="w-full flex items-center p-4">
-          <Link href="/sales" className="w-full flex items-center">
-            <CiMoneyBill size={30} color={active === 10 ? "crimson" : "#555"} />
-            <h5 className={`pl-2 text-[18px] font-[400] ${active === 10 ? "text-[crimson]" : "text-[#555]"} hidden 800px:block`}>
-              Sales
-            </h5>
-          </Link>
-        </div>
-        <div className="w-full flex items-center p-4">
-          <Link href="/refunds" className="w-full flex items-center">
-            <HiOutlineReceiptRefund size={30} color={active === 11 ? "crimson" : "#555"} />
-            <h5 className={`pl-2 text-[18px] font-[400] ${active === 11 ? "text-[crimson]" : "text-[#555]"} hidden 800px:block`}>
-              Refunds
-            </h5>
-          </Link>
-        </div>
-        <div className="w-full flex items-center p-4">
-          <Link href="/inbox" className="w-full flex items-center">
-            <BiMessageSquareDetail size={30} color={active === 12 ? "crimson" : "#555"} />
-            <h5 className={`pl-2 text-[18px] font-[400] ${active === 12 ? "text-[crimson]" : "text-[#555]"} hidden 800px:block`}>
-              Inbox
-            </h5>
-          </Link>
-        </div>
-        <div className="w-full flex items-center p-4">
-          <Link href="/bank" className="w-full flex items-center">
-            <CiBank size={30} color={active === 13 ? "crimson" : "#555"} />
-            <h5 className={`pl-2 text-[18px] font-[400] ${active === 13 ? "text-[crimson]" : "text-[#555]"} hidden 800px:block`}>
-              Bank
-            </h5>
-          </Link>
-        </div>
-        <div className="w-full flex items-center p-4">
-          <Link href="/settings" className="w-full flex items-center">
-            <CiSettings size={30} color={active === 14 ? "crimson" : "#555"} />
-            <h5 className={`pl-2 text-[18px] font-[400] ${active === 14 ? "text-[crimson]" : "text-[#555]"} hidden 800px:block`}>
-              Settings
-            </h5>
-          </Link>
+    <div className="w-full h-screen bg-white/80 backdrop-blur-sm shadow-xl rounded-r-2xl overflow-y-auto sticky top-0 left-0 z-10 flex flex-col border-r border-gray-100/50">
+      {/* Optional: Admin profile summary */}
+      <div className="p-6 border-b border-gray-100/80 mb-2">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-400 flex items-center justify-center text-white font-semibold shadow-md">
+            A
+          </div>
+          <div className="hidden 800px:block">
+            <h3 className="font-semibold text-gray-800">Admin Panel</h3>
+            <p className="text-xs text-gray-500">Manage platform</p>
+          </div>
         </div>
       </div>
 
+      <div className="flex-grow px-4 py-2 space-y-1">
+        {navItems.map((item) => {
+          const isActive = active === item.id;
+          const Icon = item.icon;
+          return (
+            <Link
+              key={item.id}
+              href={item.href}
+              className={`
+                relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group
+                ${isActive
+                  ? "bg-gradient-to-r from-blue-50/80 to-white text-blue-600 shadow-sm"
+                  : "text-gray-600 hover:bg-gray-50/70 hover:text-gray-900"
+                }
+              `}
+            >
+              {isActive && (
+                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-gradient-to-b from-blue-500 to-indigo-400 rounded-r-full" />
+              )}
+              <Icon
+                size={20}
+                className={`transition-colors ${isActive ? "text-blue-500" : "text-gray-500 group-hover:text-gray-700"}`}
+              />
+              <h5 className={`
+                text-[14px] font-medium tracking-wide hidden 800px:block
+                ${isActive ? "text-blue-600" : "text-gray-600 group-hover:text-gray-800"}
+              `}>
+                {item.label}
+              </h5>
+            </Link>
+          );
+        })}
+      </div>
+
       {/* Logout Button */}
-      <div className="w-full flex items-center p-4">
+      <div className="p-4 border-t border-gray-100/80 mt-auto">
         <button
           onClick={handleAdminLogout}
-          className="w-full flex items-center cursor-pointer bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg transition duration-300"
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-50/80 hover:bg-red-500 text-gray-700 hover:text-white transition-all duration-200 group"
         >
-          <LuLogOut size={30} className="text-white" />
-          <h5 className="pl-2 text-[18px] font-[400] hidden 800px:block">
+          <LuLogOut size={20} className="text-gray-500 group-hover:text-white transition-colors" />
+          <h5 className="text-[14px] font-medium hidden 800px:block group-hover:text-white">
             Logout
           </h5>
         </button>

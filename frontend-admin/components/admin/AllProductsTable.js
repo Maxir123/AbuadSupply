@@ -1,59 +1,130 @@
-// React-related imports
 import React, { useEffect, useState, useMemo } from "react";
-
-// Third-party library imports
-import { AiOutlineDelete, AiOutlineEye, AiOutlineEdit } from "react-icons/ai";
 import { useDispatch, useSelector } from "react-redux";
-import { Button, Card, CardContent, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Tooltip, Typography } from "@mui/material";
+import {
+  Box,
+  Paper,
+  Typography,
+  Button,
+  TextField,
+  Tooltip,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Card,
+  CardContent,
+  Divider,
+  Chip,
+  InputAdornment,
+  CircularProgress,
+  useMediaQuery,
+  useTheme,
+} from "@mui/material";
+import { DataGrid } from "@mui/x-data-grid";
 import { toast } from "react-toastify";
-
-// Redux state slices (Local imports)
+import { AiOutlineDelete, AiOutlineEye, AiOutlineEdit, AiOutlineSearch } from "react-icons/ai";
 import { fetchAllProducts, updateProduct, deleteProduct, fetchSingleProduct, fetchAllVendors, createProduct } from "@/redux/adminSlice";
 import { fetchAllBrands } from "@/redux/brandSlice";
 import { fetchCategories, fetchSubcategories, fetchSubSubcategories } from "@/redux/categorySlice";
-
-// Local component imports
-import ProductTable from "../common/ProductTable";
 import EditProductModal from "../common/ProductEditModal";
 import FilterProducts from "../common/FilterProducts";
-import SearchProducts from "../common/SearchProducts";
 import Loader from "./layout/Loader";
 import ConfirmationModal from "../common/ConfirmationModal";
 import CreateItemModal from "../common/CreateItemModal";
-import Image from "next/image";
 import ViewProductModal from "../common/ViewproductModal";
 
+// Nigerian Naira formatter
+const formatNaira = (amount) => {
+  return new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    minimumFractionDigits: 2,
+  }).format(amount);
+};
+
+// Mobile Product Card
+const MobileProductCard = ({ product, onEdit, onDelete, onView }) => {
+  const price = product.discountPrice || product.originalPrice;
+  return (
+    <Card
+      sx={{
+        mb: 2,
+        borderRadius: 2,
+        boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+        "&:hover": { boxShadow: "0 2px 6px rgba(0,0,0,0.1)" },
+      }}
+    >
+      <CardContent sx={{ p: 2 }}>
+        <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+          {product.name}
+        </Typography>
+        <Typography variant="body2" color="text.secondary" gutterBottom>
+          Brand: {product.brand}
+        </Typography>
+        <Typography variant="body2" fontWeight="500" color="primary.main" gutterBottom>
+          {formatNaira(price)}
+        </Typography>
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 1 }}>
+          <Chip
+            label={`Stock: ${product.stock}`}
+            size="small"
+            color={product.stock > 10 ? "success" : product.stock > 0 ? "warning" : "error"}
+            variant="outlined"
+          />
+          <Box sx={{ display: "flex", gap: 1 }}>
+            <Tooltip title="Edit">
+              <IconButton size="small" color="primary" onClick={() => onEdit(product)}>
+                <AiOutlineEdit size={18} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Delete">
+              <IconButton size="small" color="error" onClick={() => onDelete(product.id)}>
+                <AiOutlineDelete size={18} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="View">
+              <IconButton size="small" color="info" onClick={() => onView(product.id)}>
+                <AiOutlineEye size={18} />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        </Box>
+      </CardContent>
+    </Card>
+  );
+};
 
 const AllProductsTable = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const dispatch = useDispatch();
 
-  /* ============ Redux State Selectors ============ */
-  const { singleProduct, vendors, products, isLoading } = useSelector( (state) => state.admin);
+  // Redux state
+  const { singleProduct, vendors, products, isLoading } = useSelector((state) => state.admin);
   const { brands } = useSelector((state) => state.brands);
-  const { categories, subcategories, subSubcategories, } = useSelector( (state) => state.categories );
+  const { categories, subcategories, subSubcategories } = useSelector((state) => state.categories);
 
-  /* ============ Local State ============ */
-  // Filtering & Search
+  // Filtering state
   const [searchQuery, setSearchQuery] = useState("");
-  // Filter criteria
   const [mainCategory, setMainCategory] = useState("");
   const [subCategory, setSubCategory] = useState("");
   const [subSubCategory, setSubSubCategory] = useState("");
   const [selectedBrand, setSelectedBrand] = useState("");
 
-  // Modal  states
+  // Modal states
   const [openEditModal, setOpenEditModal] = useState(false);
   const [openViewModal, setOpenViewModal] = useState(false);
   const [openDeleteModal, setOpenDeleteModal] = useState(false);
+  const [openCreateModal, setOpenCreateModal] = useState(false);
 
-  // Product selection for editing/deleting
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [productToDelete, setProductToDelete] = useState(null);
-
-  // State for updated product data (for editing)
   const [updatedProduct, setUpdatedProduct] = useState({
+    id: "",
     name: "",
-    price: "",
+    originalPrice: "",
+    discountPrice: "",
     stock: "",
     brand: "",
     mainCategory: "",
@@ -61,9 +132,7 @@ const AllProductsTable = () => {
     subSubCategory: "",
   });
 
-
-  // Local State for Creating a New Product
-  const [openCreateModal, setOpenCreateModal] = useState(false);
+  // New product state
   const [newProduct, setNewProduct] = useState({
     name: "",
     description: "",
@@ -77,11 +146,10 @@ const AllProductsTable = () => {
     vendorId: "",
     isFeatured: false,
     images: [],
-    attributes: {}
+    attributes: {},
   });
 
-    /* ============ Effects: Fetching Data =========== */    
-  // On mount, fetch products, categories, and brands
+  // Fetch initial data
   useEffect(() => {
     dispatch(fetchAllProducts());
     dispatch(fetchCategories());
@@ -89,54 +157,41 @@ const AllProductsTable = () => {
     dispatch(fetchAllVendors());
   }, [dispatch]);
 
-  // When mainCategory changes, fetch subcategories
+  // Fetch subcategories when main category changes
   useEffect(() => {
     if (mainCategory) {
       dispatch(fetchSubcategories(mainCategory));
     }
   }, [dispatch, mainCategory]);
 
-  // When subCategory changes, fetch sub-subcategories
+  // Fetch sub‑subcategories when subcategory changes
   useEffect(() => {
     if (subCategory) {
       dispatch(fetchSubSubcategories(subCategory));
     }
   }, [dispatch, subCategory]);
 
-  
-  
-  // Filter products based on selected filters and search query
-const filteredProducts = useMemo(() => {
-  const list = Array.isArray(products) ? products : [];
-  let filtered = [...list];
+  // Filter products
+  const filteredProducts = useMemo(() => {
+    let list = Array.isArray(products) ? [...products] : [];
+    if (mainCategory) list = list.filter((p) => p.mainCategory === mainCategory);
+    if (subCategory) list = list.filter((p) => p.subCategory === subCategory);
+    if (subSubCategory) list = list.filter((p) => p.subSubCategory === subSubCategory);
+    if (selectedBrand) list = list.filter((p) => p.brand === selectedBrand);
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(
+        (p) =>
+          p.name?.toLowerCase().includes(q) ||
+          p.brand?.toLowerCase().includes(q) ||
+          p._id?.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [products, mainCategory, subCategory, subSubCategory, selectedBrand, searchQuery]);
 
-  if (mainCategory) {
-    filtered = filtered.filter(p => p.mainCategory === mainCategory);
-  }
-  if (subCategory) {
-    filtered = filtered.filter(p => p.subCategory === subCategory);
-  }
-  if (subSubCategory) {
-    filtered = filtered.filter(p => p.subSubCategory === subSubCategory);
-  }
-  if (selectedBrand) {
-    filtered = filtered.filter(p => p.brand === selectedBrand);
-  }
-  if (searchQuery) {
-    const q = searchQuery.toLowerCase();
-    filtered = filtered.filter(p =>
-      (p.name || "").toLowerCase().includes(q) ||
-      (p.brand || "").toLowerCase().includes(q) ||
-      (p._id || "").toLowerCase().includes(q)
-    );
-  }
-  return filtered;
-}, [products, mainCategory, subCategory, subSubCategory, selectedBrand, searchQuery]);
-
-
-  // Handlers – Filters & Search     
+  // Handlers
   const handleSearchChange = (e) => setSearchQuery(e.target.value);
-
   const handleFilterReset = () => {
     setMainCategory("");
     setSubCategory("");
@@ -144,27 +199,23 @@ const filteredProducts = useMemo(() => {
     setSelectedBrand("");
     setSearchQuery("");
   };
-
   const handleBrandChange = (e) => setSelectedBrand(e.target.value);
-
   const handleCategoryChange = (e) => {
-    const selectedCategory = e.target.value;
-    setMainCategory(selectedCategory);
+    const val = e.target.value;
+    setMainCategory(val);
     setSubCategory("");
     setSubSubCategory("");
-    dispatch(fetchSubcategories(selectedCategory));
+    dispatch(fetchSubcategories(val));
   };
-
   const handleSubCategoryChange = (e) => {
-    const selectedSubCat = e.target.value;
-    setSubCategory(selectedSubCat);
+    const val = e.target.value;
+    setSubCategory(val);
     setSubSubCategory("");
-    dispatch(fetchSubSubcategories(selectedSubCat));
+    dispatch(fetchSubSubcategories(val));
   };
-
   const handleSubSubCategoryChange = (e) => setSubSubCategory(e.target.value);
 
-  // Handlers – Editing 
+  // Edit handlers
   const handleProductEdit = (product) => {
     setSelectedProduct(product);
     setUpdatedProduct({
@@ -190,31 +241,14 @@ const filteredProducts = useMemo(() => {
     setSelectedProduct(null);
   };
 
-  // Custom onInputChange to update updatedProduct state
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setUpdatedProduct((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setUpdatedProduct((prev) => ({ ...prev, [name]: value }));
   };
 
-  // for attributes
-  const handleNewProductAttributeChange = (e) => {
-    const { name, value } = e.target;
-    setNewProduct((prev) => ({
-      ...prev,
-      attributes: {
-        ...prev.attributes,
-        [name]: value,
-      },
-    }));
-  };
-  
-  // Update Product
   const handleUpdateProduct = async () => {
     if (!subCategory || !subSubCategory) {
-      return toast.error(`Please select ${!subCategory ? "Sub-Category" : "Sub-Sub Category"} before updating.`);
+      return toast.error("Please select both sub‑category and sub‑sub‑category.");
     }
     const payload = {
       id: updatedProduct.id,
@@ -228,387 +262,338 @@ const filteredProducts = useMemo(() => {
       subSubCategory,
     };
     try {
-      const result = await dispatch(
-        updateProduct({ productId: updatedProduct.id, updatedProduct: payload })
-      );
+      const result = await dispatch(updateProduct({ productId: updatedProduct.id, updatedProduct: payload }));
       if (result.type === "admin/updateProduct/fulfilled") {
-        toast.success("Product updated successfully!");
+        toast.success("Product updated!");
         dispatch(fetchAllProducts());
         setOpenEditModal(false);
-        window.location.reload();
       } else {
-        toast.error("Failed to update the product.");
+        toast.error("Update failed.");
       }
-    } catch (error) {
-      console.error("Error updating product:", error);
-      toast.error("An unexpected error occurred.");
+    } catch {
+      toast.error("An error occurred.");
     }
   };
 
-  // Handlers – Creating New Product
-  const handleNewProductInputChange = (e) => {
-    const { name, value } = e.target;
-    setNewProduct((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+  // Delete handlers
+  const handleDeleteClick = (productId) => {
+    setProductToDelete(productId);
+    setOpenDeleteModal(true);
   };
-
-  // For image input
-  const handleFileChange = (e) => {
-    const files = Array.from(e.target.files);
-    setNewProduct((prev) => ({ ...prev, images: files }));
-  };
-  
-const handleCreateProduct = async () => {
-  const formData = new FormData();
-
-  // For everything except images
-  Object.keys(newProduct).forEach((key) => {
-    if (key !== "images") {
-      if (key === "attributes") {
-        formData.append(key, JSON.stringify(newProduct[key])); 
-      } else {
-        formData.append(key, newProduct[key]);
-      }
-    }
-  });
-
-  // For images
-  newProduct.images.forEach((file) => {
-    formData.append("images", file);
-  });
-
-  // console.log("🧾 Logging FormData entries:");
-  for (let [key, value] of formData.entries()) {
-    console.log(`${key}:`, value);
-  }
-  try {
-    const result = await dispatch(createProduct(formData));
-    if (result.type === "admin/createProduct/fulfilled") {
-      toast.success("Product created successfully!");
-      setOpenCreateModal(false);
-      dispatch(fetchAllProducts());
-    } else {
-      toast.error("Failed to create product.");
-    }
-  } catch (error) {
-    toast.error("An unexpected error occurred.");
-  }
-};
-
-  // Handlers – Deletion
-  const handleDelete = async () => {
+  const handleDeleteConfirm = async () => {
     try {
       const result = await dispatch(deleteProduct(productToDelete));
       if (result.type === "admin/deleteProduct/fulfilled") {
-        toast.success("Product deleted successfully!");
+        toast.success("Product deleted!");
         dispatch(fetchAllProducts());
       } else {
-        toast.error("Failed to delete the product.");
+        toast.error("Deletion failed.");
       }
-    } catch (error) {
-      console.error("Error deleting product:", error);
-      toast.error("An unexpected error occurred while deleting the product.");
+    } catch {
+      toast.error("An error occurred.");
     }
     setOpenDeleteModal(false);
   };
 
-  const openDeleteModalHandler = (productId) => {
-    setProductToDelete(productId);
-    setOpenDeleteModal(true);
-  };
-
-  // Handlers – Viewing Product Detailsn 
+  // View handler
   const handleViewProduct = async (productId) => {
-      await dispatch(fetchSingleProduct(productId));
-      setOpenViewModal(true);
+    await dispatch(fetchSingleProduct(productId));
+    setOpenViewModal(true);
   };
 
-  // Table Configuration
-  // Helper function to capitalize first letter
-  const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+  // Create product handlers
+  const handleNewProductInputChange = (e) => {
+    const { name, value } = e.target;
+    setNewProduct((prev) => ({ ...prev, [name]: value }));
+  };
+  const handleNewProductAttributeChange = (e) => {
+    const { name, value } = e.target;
+    setNewProduct((prev) => ({
+      ...prev,
+      attributes: { ...prev.attributes, [name]: value },
+    }));
+  };
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files);
+    setNewProduct((prev) => ({ ...prev, images: files }));
+  };
+  const handleCreateProduct = async () => {
+    const formData = new FormData();
+    Object.keys(newProduct).forEach((key) => {
+      if (key !== "images") {
+        if (key === "attributes") {
+          formData.append(key, JSON.stringify(newProduct[key]));
+        } else {
+          formData.append(key, newProduct[key]);
+        }
+      }
+    });
+    newProduct.images.forEach((file) => {
+      formData.append("images", file);
+    });
+    try {
+      const result = await dispatch(createProduct(formData));
+      if (result.type === "admin/createProduct/fulfilled") {
+        toast.success("Product created!");
+        setOpenCreateModal(false);
+        dispatch(fetchAllProducts());
+      } else {
+        toast.error("Creation failed.");
+      }
+    } catch {
+      toast.error("An error occurred.");
+    }
+  };
+
+  // DataGrid columns (desktop)
   const columns = [
-    { field: "id", headerName: "ID", minWidth: 150, flex: 1, renderCell: ({ row: { id } }) => `...${id.slice(-4)}` },
-    { field: "name", headerName: "Name", minWidth: 180, flex: 1.4, renderCell: ({ row: { name } }) => `${name.slice(0, 8)}...` },
-    { field: "brand", headerName: "Brand", minWidth: 130, flex: 0.6 },
-    { field: "price", headerName: "U-Price", minWidth: 100, flex: 0.6, renderCell: ({ row: { originalPrice, discountPrice } }) => discountPrice ? `US$ ${discountPrice}` : `US$ ${originalPrice}` },
-    { field: "stock", headerName: "Stock", type: "number", minWidth: 80, flex: 0.5 },
-    { field: "category", headerName: "Category", minWidth: 180, flex: 1.4, renderCell: ({ row: { mainCategory } }) => `${capitalize(mainCategory)}` },
-    { field: "subcat", headerName: "Subcat", minWidth: 180, flex: 1.4, renderCell: ({ row: { subCategory } }) => `${capitalize(subCategory)}` },
-    { field: "subSubcat", headerName: "SubSubcat", minWidth: 180, flex: 1.4, renderCell: ({ row: { subSubCategory } }) => `${capitalize(subSubCategory)}` },
+    { field: "id", headerName: "ID", minWidth: 120, flex: 1, renderCell: ({ value }) => `...${value.slice(-6)}` },
+    { field: "name", headerName: "Name", minWidth: 200, flex: 1.4 },
+    { field: "brand", headerName: "Brand", minWidth: 130, flex: 0.8 },
+    {
+      field: "price",
+      headerName: "Price",
+      minWidth: 120,
+      flex: 0.8,
+      renderCell: ({ row }) => formatNaira(row.discountPrice || row.originalPrice),
+    },
+    {
+      field: "stock",
+      headerName: "Stock",
+      minWidth: 80,
+      flex: 0.5,
+      renderCell: ({ value }) => (
+        <Chip label={value} size="small" color={value > 10 ? "success" : value > 0 ? "warning" : "error"} variant="outlined" />
+      ),
+    },
+    {
+      field: "category",
+      headerName: "Category",
+      minWidth: 150,
+      flex: 1,
+      renderCell: ({ row }) => row.mainCategory,
+    },
     {
       field: "actions",
       headerName: "Actions",
-      minWidth: 200,
-      flex: 1,
+      minWidth: 120,
+      flex: 0.8,
+      sortable: false,
       renderCell: (params) => (
-        <div style={{ paddingTop: "13px", display: "flex", justifyContent: "flex-start", gap: "10px", flexWrap: "wrap" }}>
+        <Box sx={{ display: "flex", gap: 1 }}>
           <Tooltip title="Edit">
-            <Button variant="contained" color="primary" size="small" onClick={() => handleProductEdit(params.row)} style={{ padding: "6px 12px", minWidth: "auto", fontSize: "14px" }}>
-              <AiOutlineEdit size={16} />
-            </Button>
+            <IconButton size="small" color="primary" onClick={() => handleProductEdit(params.row)}>
+              <AiOutlineEdit size={18} />
+            </IconButton>
           </Tooltip>
           <Tooltip title="Delete">
-            <Button variant="contained" color="error" size="small" onClick={() => openDeleteModalHandler(params.row.id)} style={{ padding: "6px 12px", minWidth: "auto", fontSize: "14px" }}>
-              <AiOutlineDelete size={16} />
-            </Button>
+            <IconButton size="small" color="error" onClick={() => handleDeleteClick(params.row.id)}>
+              <AiOutlineDelete size={18} />
+            </IconButton>
           </Tooltip>
           <Tooltip title="View">
-            <Button variant="contained" color="info" size="small" onClick={() => handleViewProduct(params.row.id)} style={{ padding: "6px 12px", minWidth: "auto", fontSize: "14px" }}>
-              <AiOutlineEye size={16} />
-            </Button>
+            <IconButton size="small" color="info" onClick={() => handleViewProduct(params.row.id)}>
+              <AiOutlineEye size={18} />
+            </IconButton>
           </Tooltip>
-        </div>
+        </Box>
       ),
     },
   ];
 
-  const rows = filteredProducts.map((item) => ({
-    id: item._id,
-    name: item.name,
-    brand: item.brand,
-    originalPrice: item.originalPrice,
-    discountPrice: item.discountPrice,
-    stock: item.stock,
-    mainCategory: item.mainCategory,
-    subCategory: item.subCategory,
-    subSubCategory: item.subSubCategory,
+  const rows = filteredProducts.map((p) => ({
+    id: p._id,
+    name: p.name,
+    brand: p.brand,
+    originalPrice: p.originalPrice,
+    discountPrice: p.discountPrice,
+    stock: p.stock,
+    mainCategory: p.mainCategory,
   }));
 
+  if (isLoading) return <Loader />;
+
   return (
-    <div className="w-full min-h-screen overflow-hidden">
-      {isLoading ? (
-        <Loader />
+    <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, bgcolor: "#f5f5f5", minHeight: "100vh" }}>
+      {/* Header */}
+      <Paper elevation={0} sx={{ p: 3, mb: 3, borderRadius: 3, bgcolor: "white", border: "1px solid", borderColor: "grey.100" }}>
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 2 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: "primary.light", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <i className="fas fa-boxes text-xl text-primary" />
+            </Box>
+            <Typography variant="h5" fontWeight="bold">
+              Products
+            </Typography>
+            <Chip label={products?.length || 0} size="small" color="primary" />
+          </Box>
+          <Button variant="contained" startIcon={<AiOutlineEdit />} onClick={() => setOpenCreateModal(true)} sx={{ textTransform: "none", borderRadius: 2 }}>
+            Create Product
+          </Button>
+        </Box>
+      </Paper>
+
+      {/* Filters */}
+      <Paper elevation={0} sx={{ p: 2, mb: 3, borderRadius: 3, bgcolor: "white", border: "1px solid", borderColor: "grey.100" }}>
+        <FilterProducts
+          mainCategory={mainCategory}
+          subCategory={subCategory}
+          subSubCategory={subSubCategory}
+          selectedBrand={selectedBrand}
+          categories={categories}
+          subcategories={subcategories}
+          subSubcategories={subSubcategories}
+          brands={brands}
+          handleFilterReset={handleFilterReset}
+          handleCategoryChange={handleCategoryChange}
+          handleSubCategoryChange={handleSubCategoryChange}
+          handleSubSubCategoryChange={handleSubSubCategoryChange}
+          handleBrandChange={handleBrandChange}
+        />
+      </Paper>
+
+      {/* Search */}
+      <Paper elevation={0} sx={{ p: 2, mb: 3, borderRadius: 3, bgcolor: "white", border: "1px solid", borderColor: "grey.100" }}>
+        <TextField
+          fullWidth
+          variant="outlined"
+          placeholder="Search by name, brand, or ID..."
+          value={searchQuery}
+          onChange={handleSearchChange}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <AiOutlineSearch size={20} color="#9ca3af" />
+              </InputAdornment>
+            ),
+            sx: { borderRadius: 2 },
+          }}
+        />
+      </Paper>
+
+      {/* Content: DataGrid (desktop) or cards (mobile) */}
+      {isMobile ? (
+        <Box sx={{ display: "flex", flexDirection: "column" }}>
+          {filteredProducts.length === 0 ? (
+            <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", py: 4 }}>
+              No products found.
+            </Typography>
+          ) : (
+            filteredProducts.map((product) => (
+              <MobileProductCard
+                key={product._id}
+                product={{
+                  id: product._id,
+                  name: product.name,
+                  brand: product.brand,
+                  originalPrice: product.originalPrice,
+                  discountPrice: product.discountPrice,
+                  stock: product.stock,
+                }}
+                onEdit={handleProductEdit}
+                onDelete={handleDeleteClick}
+                onView={handleViewProduct}
+              />
+            ))
+          )}
+        </Box>
       ) : (
-        <div className="w-full p-4 md:p-8 rounded-md">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-2xl font-semibold">Product List</h1>
-              <span className="ml-2 bg-gray-200 text-gray-700 text-sm font-medium px-2.5 py-0.5 rounded-full">
-                {products?.length || 0}
-              </span>
-            </div>
-            <Button variant="contained" color="primary" onClick={() => setOpenCreateModal(true)}>
-              Create Product
-            </Button>
-          </div>
-
-          {/* Filters */}
-          <div className="bg-white p-6 rounded-lg shadow mb-6">
-            <FilterProducts
-              mainCategory={mainCategory}
-              subCategory={subCategory}
-              subSubCategory={subSubCategory}
-              selectedBrand={selectedBrand}
-              categories={categories}
-              subcategories={subcategories}
-              subSubcategories={subSubcategories}
-              brands={brands}
-              handleFilterReset={handleFilterReset}
-              handleCategoryChange={handleCategoryChange}
-              handleSubCategoryChange={handleSubCategoryChange}
-              handleSubSubCategoryChange={handleSubSubCategoryChange}
-              handleBrandChange={handleBrandChange}
-            />
-          </div>
-
-          {/* Search Section */}
-          <div className="bg-white p-6 rounded-lg shadow mb-6">
-            <SearchProducts searchQuery={searchQuery} handleSearchChange={handleSearchChange} />
-          </div>
-
-          {/* Data Table */}
-          <div className="bg-white p-6 rounded-lg shadow mb-6">
-            <ProductTable
+        <Paper
+          elevation={0}
+          sx={{
+            borderRadius: 3,
+            overflow: "auto",
+            border: "1px solid",
+            borderColor: "grey.100",
+            bgcolor: "white",
+          }}
+        >
+          <Box sx={{ minWidth: "100%" }}>
+            <DataGrid
               rows={rows}
               columns={columns}
+              pageSize={10}
+              rowsPerPageOptions={[10, 25, 50]}
+              autoHeight
+              disableSelectionOnClick
+              sx={{
+                border: "none",
+                "& .MuiDataGrid-columnHeaders": {
+                  backgroundColor: "#fafafa",
+                  borderBottom: "1px solid #e5e7eb",
+                  fontSize: "0.875rem",
+                  fontWeight: 600,
+                },
+                "& .MuiDataGrid-cell": {
+                  borderBottom: "1px solid #f3f4f6",
+                  py: 1.5,
+                },
+                "& .MuiDataGrid-row:hover": {
+                  backgroundColor: "#f9fafb",
+                },
+              }}
             />
-          </div>
-
-          {/* Edit Product Modal */}
-          <EditProductModal
-            open={openEditModal}
-            onClose={closeEditModal}
-            data={updatedProduct}
-            onInputChange={handleInputChange}
-            onSave={handleUpdateProduct}
-            selectedBrand={selectedBrand}
-            mainCategory={mainCategory}
-            subCategory={subCategory}
-            subSubCategory={subSubCategory}
-            handleBrandChange={handleBrandChange}
-            handleCategoryChange={handleCategoryChange}
-            handleSubCategoryChange={handleSubCategoryChange}
-            handleSubSubCategoryChange={handleSubSubCategoryChange}
-            brands={brands}
-            categories={categories}
-            subcategories={subcategories}
-            subSubcategories={subSubcategories}
-          />
-
-            {/* Create Product Modal */}
-            <CreateItemModal
-              open={openCreateModal}
-              onClose={() => setOpenCreateModal(false)}
-              newItem={newProduct}
-              onInputChange={handleNewProductInputChange}
-              onAttributeChange={handleNewProductAttributeChange}
-              onSave={handleCreateProduct}
-              selectedBrand={selectedBrand}
-              categories={categories}
-              subcategories={subcategories}
-              subSubcategories={subSubcategories}
-              brands={brands}
-              vendors={vendors}  // Vendors array passed here
-              handleCategoryChange={handleCategoryChange}
-              handleSubCategoryChange={handleSubCategoryChange}
-              handleSubSubCategoryChange={handleSubSubCategoryChange}
-              handleBrandChange={handleBrandChange}
-              handleFileChange={handleFileChange}
-              isSale={false}  // Normal product creation
-            />
-
-        {/* View Product Modal */}
-          <Dialog
-            open={openViewModal}
-            onClose={()=>  setOpenViewModal(false)}
-            maxWidth="md"
-            fullWidth
-          >
-            <DialogTitle style={{ fontWeight: 'bold' }}>Product Details</DialogTitle>
-            <DialogContent>
-              {isLoading ? ( // Show loading spinner while fetching product
-                <div style={{ display: "flex", justifyContent: "center", padding: "20px" }}>
-                  <CircularProgress />
-                </div>
-              ) : singleProduct ? (
-                <div>
-                  {/* Product Information */}
-                  <Card style={{ marginBottom: "20px" }}>
-                    <CardContent>
-                      <Typography variant="h6">Product Name: {singleProduct.name}</Typography>
-                      <Divider style={{ margin: "10px 0" }} />
-                      <Typography variant="body2" color="textSecondary">
-                        <strong>Brand:</strong> {singleProduct.brand}
-                      </Typography>
-                      <Typography variant="body2" color="textSecondary">
-                        <strong>Main Category:</strong> {singleProduct.mainCategory}
-                      </Typography>
-                      <Typography variant="body2" color="textSecondary">
-                        <strong>Sub Category:</strong> {singleProduct.subCategory}
-                      </Typography>
-                      <Typography variant="body2" color="textSecondary">
-                        <strong>Sub Sub Category:</strong> {singleProduct.subSubCategory}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-
-                  {/* Vendor Information */}
-                  <Card style={{ marginBottom: "20px" }}>
-                    <CardContent>
-                      <Typography variant="h6">Vendor Information</Typography>
-                      <Divider style={{ margin: "10px 0" }} />
-                      <Typography variant="body2">
-                        <strong>Vendor Name:</strong> {singleProduct?.vendor?.name}
-                      </Typography>
-                      <Typography variant="body2">
-                        <strong>Vendor Address:</strong> {singleProduct?.vendor?.address}
-                      </Typography>
-                      <Image src={singleProduct?.vendor?.avatar.url} alt="Vendor Avatar" width="50" height="50" style={{ borderRadius: "50%" }} />
-                    </CardContent>
-                  </Card>
-
-                  {/* Product Pricing and Stock */}
-                  <Card style={{ marginBottom: "20px" }}>
-                    <CardContent>
-                      <Typography variant="h6">Pricing & Stock</Typography>
-                      <Divider style={{ margin: "10px 0" }} />
-                      <Typography variant="body2">
-                        <strong>Original Price:</strong> ${singleProduct.originalPrice}
-                      </Typography>
-                      <Typography variant="body2">
-                        <strong>Discount Price:</strong> ${singleProduct.discountPrice}
-                      </Typography>
-                      <Typography variant="body2">
-                        <strong>Stock:</strong> {singleProduct.stock}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-
-                  {/* Product Images */}
-                  <Card style={{ marginBottom: "20px" }}>
-                    <CardContent>
-                      <Typography variant="h6">Product Images</Typography>
-                      <Divider style={{ margin: "10px 0" }} />
-                      <div style={{ display: "flex", gap: "10px" }}>
-                        {singleProduct.images.map((img, index) => (
-                          <Image
-                            key={img?._id || index}
-                            src={img?.url || "/images/fallbackImage.jpg"}
-                            alt={`Product Image ${index + 1}`}
-                            width={100}
-                            height={100}
-                            sizes="(max-width: 768px) 80px, 100px"
-                            priority={index === 0}          // only the first one if it’s above the fold
-                            style={{ borderRadius: 5, objectFit: "cover" }}
-                          />
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Product Reviews */}
-                  <Card>
-                    <CardContent>
-                      <Typography variant="h6">Product Reviews</Typography>
-                      <Divider style={{ margin: "10px 0" }} />
-                      {singleProduct.reviews.length > 0 ? (
-                        <ul>
-                          {singleProduct.reviews.map((review) => (
-                            <li key={review._id}>
-                              <Typography variant="body2">
-                                <strong>{review.user.name} ({review.rating} stars)</strong>
-                              </Typography>
-                              <Typography variant="body2">{review.comment}</Typography>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <Typography variant="body2" color="textSecondary">No reviews yet.</Typography>
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
-              ) : (
-                <Typography variant="body2" color="textSecondary">Product details are not available.</Typography>
-              )}
-            </DialogContent>
-            <DialogActions>
-              <Button onClick={()=>  setOpenViewModal(false)} color="secondary">
-                Close
-              </Button>
-            </DialogActions>
-          </Dialog>
-
-          <ViewProductModal
-            open={openViewModal}
-            onClose={() => setOpenViewModal(false)}
-            isLoading={isLoading}
-            singleProduct={singleProduct}
-          />
-
-          {/* Confirmation Delete Modal */}
-          <ConfirmationModal
-            open={openDeleteModal}
-            onClose={() => setOpenDeleteModal(false)}
-            onConfirm={handleDelete}
-            title="Confirm Deletion"
-            message="Are you sure you want to delete this product?"
-          />
-        </div>
+          </Box>
+        </Paper>
       )}
-    </div>
+
+      {/* Modals */}
+      <EditProductModal
+        open={openEditModal}
+        onClose={closeEditModal}
+        data={updatedProduct}
+        onInputChange={handleInputChange}
+        onSave={handleUpdateProduct}
+        selectedBrand={selectedBrand}
+        mainCategory={mainCategory}
+        subCategory={subCategory}
+        subSubCategory={subSubCategory}
+        handleBrandChange={handleBrandChange}
+        handleCategoryChange={handleCategoryChange}
+        handleSubCategoryChange={handleSubCategoryChange}
+        handleSubSubCategoryChange={handleSubSubCategoryChange}
+        brands={brands}
+        categories={categories}
+        subcategories={subcategories}
+        subSubcategories={subSubcategories}
+      />
+
+      <CreateItemModal
+        open={openCreateModal}
+        onClose={() => setOpenCreateModal(false)}
+        newItem={newProduct}
+        onInputChange={handleNewProductInputChange}
+        onAttributeChange={handleNewProductAttributeChange}
+        onSave={handleCreateProduct}
+        selectedBrand={selectedBrand}
+        categories={categories}
+        subcategories={subcategories}
+        subSubcategories={subSubcategories}
+        brands={brands}
+        vendors={vendors}
+        handleCategoryChange={handleCategoryChange}
+        handleSubCategoryChange={handleSubCategoryChange}
+        handleSubSubCategoryChange={handleSubSubCategoryChange}
+        handleBrandChange={handleBrandChange}
+        handleFileChange={handleFileChange}
+        isSale={false}
+      />
+
+      <ViewProductModal
+        open={openViewModal}
+        onClose={() => setOpenViewModal(false)}
+        isLoading={isLoading}
+        singleProduct={singleProduct}
+      />
+
+      <ConfirmationModal
+        open={openDeleteModal}
+        onClose={() => setOpenDeleteModal(false)}
+        onConfirm={handleDeleteConfirm}
+        title="Confirm Deletion"
+        message="Are you sure you want to delete this product? This action cannot be undone."
+      />
+    </Box>
   );
 };
 

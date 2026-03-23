@@ -1,120 +1,164 @@
 import React, { useEffect } from 'react';
-import { FaTruck, FaBoxOpen, FaTimesCircle, FaCheckCircle } from 'react-icons/fa';
+import {
+  FaTruck,
+  FaBoxOpen,
+  FaTimesCircle,
+  FaCheckCircle,
+  FaDollarSign,
+  FaShoppingCart,
+  FaChartLine,
+  FaCrown,
+} from 'react-icons/fa';
 import Link from 'next/link';
 import { useDispatch, useSelector } from 'react-redux';
 import WeeklyTrendsChart from '../charts/WeeklyTrendsChart';
 import { fetchAdminDashboardStats, fetchWeeklyTrends } from '@/redux/adminSlice';
 import Loader from './Loader';
 
+const formatNaira = (amount) => {
+  return new Intl.NumberFormat('en-NG', {
+    style: 'currency',
+    currency: 'NGN',
+    minimumFractionDigits: 2,
+  }).format(amount);
+};
+
+const StatCard = ({ title, value, icon, trend, trendUp }) => (
+  <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col gap-2 active:scale-[0.98] transition">
+    <div className="flex items-center justify-between">
+      <span className="text-xs text-gray-500">{title}</span>
+      <span className="text-lg text-gray-400">{icon}</span>
+    </div>
+
+    <div className="flex items-end justify-between">
+      <p className="text-xl font-semibold text-gray-800 leading-tight">{value}</p>
+      {trend && (
+        <span className={`text-xs font-medium ${trendUp ? 'text-green-600' : 'text-red-600'}`}>
+          {trend}
+        </span>
+      )}
+    </div>
+  </div>
+);
+
 const DashboardHero = () => {
   const dispatch = useDispatch();
-  const { dashboardStats, weeklyTrends, isLoading } = useSelector((state) => state.admin);
-  const { adminInfo } = useSelector((state) => state.admin);
-  const displayName = adminInfo?.name?.split(" ")[0] || adminInfo?.email;
+  const { dashboardStats, weeklyTrends, isLoading, adminInfo } = useSelector((state) => state.admin);
+
+  const displayName = adminInfo?.name?.split(' ')[0] || adminInfo?.email;
 
   useEffect(() => {
     if (!adminInfo) return;
     dispatch(fetchAdminDashboardStats());
     dispatch(fetchWeeklyTrends());
-     if (!adminInfo.name) {
-    dispatch(fetchAdminProfile());
-  }
   }, [dispatch, adminInfo]);
 
-
   if (isLoading || !dashboardStats) return <Loader />;
+
+  const stats = [
+    {
+      title: "Today's Orders",
+      value: dashboardStats.ordersToday,
+      icon: <FaCheckCircle className="text-green-500" />,
+    },
+    {
+      title: "Processing",
+      value: dashboardStats.pendingOrders,
+      icon: <FaTruck className="text-yellow-500" />,
+    },
+    {
+      title: "Delivered",
+      value: dashboardStats.deliveredOrders,
+      icon: <FaBoxOpen className="text-blue-500" />,
+    },
+    {
+      title: "Cancelled",
+      value: dashboardStats.canceledOrders || 0,
+      icon: <FaTimesCircle className="text-red-500" />,
+    },
+  ];
+
+  const salesStats = [
+    {
+      title: "Today",
+      value: formatNaira(dashboardStats.todaySales),
+      icon: <FaDollarSign />,
+      trend: dashboardStats.todaySalesTrend ? `${dashboardStats.todaySalesTrend}%` : null,
+      trendUp: dashboardStats.todaySalesTrend > 0,
+    },
+    {
+      title: "Yesterday",
+      value: formatNaira(dashboardStats.yesterdaySales),
+      icon: <FaDollarSign />,
+    },
+    {
+      title: "This Month",
+      value: formatNaira(dashboardStats.thisMonthSales),
+      icon: <FaChartLine />,
+    },
+    {
+      title: "All Time",
+      value: formatNaira(dashboardStats.allTimeSales),
+      icon: <FaChartLine />,
+    },
+    {
+      title: "Avg Order",
+      value: formatNaira(dashboardStats.avgOrderValue),
+      icon: <FaShoppingCart />,
+    },
+    {
+      title: "Best Seller",
+      value: dashboardStats.bestSellingProduct || "N/A",
+      icon: <FaCrown />,
+    },
+  ];
+
   return (
-    <div className="w-full p-4 md:p-8 rounded-md bg-gray-100">
+    <div className="min-h-screen bg-gray-50 p-3 sm:p-5">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6">
-        <div className="mb-3 sm:mb-0">
-          <h1 className="text-lg sm:text-xl font-semibold">Welcome {displayName}</h1>
-          <p className="text-xs sm:text-sm text-gray-600">Monitor overall site statistics.</p>
+      <div className="flex flex-col gap-3 mb-5">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-800">
+            Hi, {displayName}
+          </h1>
+          <p className="text-xs text-gray-500">Store overview</p>
         </div>
-        <Link href="/admin/products">
-          <button className="bg-blue-600 text-white px-3 py-1 text-xs sm:text-sm rounded">
-            Manage Products
-          </button>
-        </Link>
+
+      <Link href="/admin/products">
+        <button className="w-full sm:w-auto flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-blue-500 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-md hover:shadow-lg hover:from-blue-700 hover:to-blue-600 active:scale-[0.97] transition-all duration-200">
+          
+          {/* Optional icon */}
+          <span className="text-base">📦</span>
+
+          Manage Products
+        </button>
+      </Link>
       </div>
 
-      {/* Stats Cards */}
-      <div className="bg-white p-3 sm:p-4 rounded-lg shadow mb-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-
-          {/* Orders Confirmed (assumed same as Today Orders) */}
-          <div className="bg-green-100 p-3 sm:p-4 rounded-lg flex items-center justify-between">
-            <div className="flex items-center">
-              <FaCheckCircle className="text-lg sm:text-xl text-green-600 mr-2" />
-              <span className="text-sm sm:text-base">Today’s Orders</span>
-            </div>
-            <span className="text-lg sm:text-xl font-bold">
-              {dashboardStats?.ordersToday}
-            </span>
-          </div>
-
-          {/* Orders in Transit (Processing) */}
-          <div className="bg-yellow-100 p-3 sm:p-4 rounded-lg flex items-center justify-between">
-            <div className="flex items-center">
-              <FaTruck className="text-lg sm:text-xl text-yellow-600 mr-2" />
-              <span className="text-sm sm:text-base">Processing Orders</span>
-            </div>
-            <span className="text-lg sm:text-xl font-bold">
-              {dashboardStats?.pendingOrders}
-            </span>
-          </div>
-
-          {/* Orders Delivered */}
-          <div className="bg-blue-100 p-3 sm:p-4 rounded-lg flex items-center justify-between">
-            <div className="flex items-center">
-              <FaBoxOpen className="text-lg sm:text-xl text-blue-600 mr-2" />
-              <span className="text-sm sm:text-base">Delivered Orders</span>
-            </div>
-            <span className="text-lg sm:text-xl font-bold">
-              {dashboardStats?.deliveredOrders}
-            </span>
-          </div>
-
-          {/* Orders Cancelled */}
-          <div className="bg-red-100 p-3 sm:p-4 rounded-lg flex items-center justify-between">
-            <div className="flex items-center">
-              <FaTimesCircle className="text-lg sm:text-xl text-red-600 mr-2" />
-              <span className="text-sm sm:text-base">Cancelled Orders</span>
-            </div>
-            <span className="text-lg sm:text-xl font-bold">
-              {dashboardStats?.canceledOrders || 0}
-            </span>
-          </div>
-        </div>
+      {/* Orders */}
+      <div className="grid grid-cols-2 gap-3 mb-6">
+        {stats.map((stat, idx) => (
+          <StatCard key={idx} {...stat} />
+        ))}
       </div>
 
-      {/* Sales Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Today's Sales" value={`$${dashboardStats?.todaySales.toFixed(2)}`} bg="bg-green-200" icon={<FaCheckCircle className="text-green-600" />} />
-        <StatCard title="Yesterday's Sales" value={`$${dashboardStats?.yesterdaySales.toFixed(2)}`} bg="bg-orange-200" />
-        <StatCard title="This Month" value={`$${dashboardStats?.thisMonthSales.toFixed(2)}`} bg="bg-blue-200" />
-        <StatCard title="All Time Sales" value={`$${dashboardStats?.allTimeSales.toFixed(2)}`} bg="bg-emerald-300" />
-        <StatCard title="Avg. Order Value" value={`$${dashboardStats?.avgOrderValue}`} bg="bg-purple-200" />
-        <StatCard title="Best Seller" value={dashboardStats?.bestSellingProduct} bg="bg-pink-200" />
+      {/* Sales */}
+      <div className="grid grid-cols-2 gap-3 mb-6">
+        {salesStats.map((stat, idx) => (
+          <StatCard key={idx} {...stat} />
+        ))}
       </div>
 
+      {/* Chart */}
       {!isLoading && weeklyTrends.length > 0 && (
-        <div className="mt-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-3">
+          <h2 className="text-sm font-semibold text-gray-700 mb-1">Weekly Trend</h2>
+          <p className="text-xs text-gray-400 mb-3">Last 7 days</p>
           <WeeklyTrendsChart trends={weeklyTrends} />
-        </div>     
+        </div>
       )}
     </div>
   );
 };
-
-const StatCard = ({ title, value, bg, icon }) => (
-  <div className={`${bg} p-4 rounded-lg shadow flex flex-col gap-1`}>
-    <div className="flex items-center justify-between">
-      <h3 className="text-sm font-medium text-gray-700">{title}</h3>
-      {icon && <div className="text-lg">{icon}</div>}
-    </div>
-    <p className="text-lg font-bold text-gray-900">{value}</p>
-  </div>
-);
 
 export default DashboardHero;

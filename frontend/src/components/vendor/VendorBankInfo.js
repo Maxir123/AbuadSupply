@@ -12,12 +12,33 @@ import {
   Alert,
   InputAdornment,
 } from "@mui/material";
-import { AccountBalance, Person, Numbers, Receipt } from "@mui/icons-material";
+import {
+  AccountBalance,
+  Person,
+  Numbers,
+  Receipt,
+  Save,
+  Edit,
+} from "@mui/icons-material";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
 
 // Local imports (Redux slices)
-import { createVendorBankInfo, getVendorInfo, updateVendorBankInfo } from "@/redux/slices/vendorSlice";
+import {
+  createVendorBankInfo,
+  getVendorInfo,
+  updateVendorBankInfo,
+} from "@/redux/slices/vendorSlice";
+
+// Section header component
+const SectionHeader = ({ icon: Icon, title }) => (
+  <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+    <Icon size={20} color="#1976d2" />
+    <Typography variant="h6" fontWeight="bold">
+      {title}
+    </Typography>
+  </Box>
+);
 
 const VendorBankInfo = () => {
   const dispatch = useDispatch();
@@ -91,9 +112,7 @@ const VendorBankInfo = () => {
         result.type === "vendors/createVendorBankInfo/fulfilled"
       ) {
         toast.success("Bank information saved successfully!");
-        // Refresh vendor data
         await dispatch(getVendorInfo(vendorInfo._id));
-        // Optionally reset form? Better to keep the saved data, so no reset.
       } else {
         toast.error(result.payload?.message || "Failed to update bank information.");
       }
@@ -111,6 +130,8 @@ const VendorBankInfo = () => {
       </Box>
     );
   }
+
+  const isEditMode = !!vendorInfo?.vendorBankInfo;
 
   return (
     <Box
@@ -148,7 +169,7 @@ const VendorBankInfo = () => {
           <AccountBalance sx={{ fontSize: 32 }} />
           <Box>
             <Typography variant="h5" fontWeight="bold">
-              {vendorInfo?.vendorBankInfo ? "Update Bank Information" : "Add Bank Information"}
+              {isEditMode ? "Update Bank Information" : "Add Bank Information"}
             </Typography>
             <Typography variant="body2" sx={{ opacity: 0.8 }}>
               Manage your payout account details
@@ -158,6 +179,7 @@ const VendorBankInfo = () => {
 
         <Box sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
           <form onSubmit={handleSubmit}>
+            <SectionHeader icon={AccountBalance} title="Bank Account Details" />
             <Grid container spacing={3}>
               <Grid item xs={12} sm={6}>
                 <TextField
@@ -245,17 +267,23 @@ const VendorBankInfo = () => {
               variant="contained"
               fullWidth
               disabled={isSubmitting || isLoading}
+              startIcon={isEditMode ? <Edit /> : <Save />}
               sx={{
                 py: 1.5,
                 borderRadius: 2,
                 textTransform: "none",
                 fontSize: "1rem",
                 fontWeight: 600,
+                transition: "all 0.2s",
+                "&:hover": {
+                  transform: "translateY(-1px)",
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                },
               }}
             >
               {isSubmitting || isLoading ? (
                 <CircularProgress size={24} color="inherit" />
-              ) : vendorInfo?.vendorBankInfo ? (
+              ) : isEditMode ? (
                 "Update Bank Info"
               ) : (
                 "Save Bank Info"

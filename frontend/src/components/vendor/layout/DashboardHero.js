@@ -1,5 +1,17 @@
 import React from "react";
 import {
+  Box,
+  Paper,
+  Typography,
+  Grid,
+  Card,
+  CardContent,
+  Button,
+  Divider,
+  useMediaQuery,
+  useTheme,
+} from "@mui/material";
+import {
   FaClock,
   FaCheckCircle,
   FaBox,
@@ -9,37 +21,57 @@ import {
   FaUndo,
   FaBan,
 } from "react-icons/fa";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 import Link from "next/link";
 import Image from "next/image";
 import { useSelector } from "react-redux";
 
 const DashboardHero = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const { vendorInfo } = useSelector((state) => state.vendors);
 
-  // Format Nigerian Naira with ₦ symbol
   const formatNaira = (amount) => {
-    // Use Nigerian locale and currency symbol
     return new Intl.NumberFormat("en-NG", {
       style: "currency",
       currency: "NGN",
       minimumFractionDigits: 2,
     }).format(amount);
-    // This outputs "₦10,023.50" for 10023.5
   };
 
-  // Order status data (could be dynamic from state)
-  const orderStats = [
-    { label: "Pending", count: 3, icon: FaClock, color: "bg-yellow-100 text-yellow-600" },
-    { label: "Confirmed", count: 4, icon: FaCheckCircle, color: "bg-green-100 text-green-600" },
-    { label: "Packaging", count: 1, icon: FaBox, color: "bg-blue-100 text-blue-600" },
-    { label: "Out For Delivery", count: 2, icon: FaTruck, color: "bg-indigo-100 text-indigo-600" },
-    { label: "Delivered", count: 10, icon: FaBoxOpen, color: "bg-emerald-100 text-emerald-600" },
-    { label: "Cancelled", count: 1, icon: FaTimesCircle, color: "bg-red-100 text-red-600" },
-    { label: "Returned", count: 1, icon: FaUndo, color: "bg-amber-100 text-amber-600" },
-    { label: "Failed To Deliver", count: 2, icon: FaBan, color: "bg-rose-100 text-rose-600" },
+  // Mock data for sales and profit (last 7 days)
+  const chartData = [
+    { day: "Mon", sales: 12500, profit: 3750 },
+    { day: "Tue", sales: 18200, profit: 5460 },
+    { day: "Wed", sales: 9800, profit: 2940 },
+    { day: "Thu", sales: 21300, profit: 6390 },
+    { day: "Fri", sales: 27500, profit: 8250 },
+    { day: "Sat", sales: 32200, profit: 9660 },
+    { day: "Sun", sales: 29800, profit: 8940 },
   ];
 
-  // Wallet data (static for UI demo)
+  // Order stats (mock data)
+  const orderStats = [
+    { label: "Pending", count: 3, icon: FaClock, color: "warning" },
+    { label: "Confirmed", count: 4, icon: FaCheckCircle, color: "success" },
+    { label: "Packaging", count: 1, icon: FaBox, color: "info" },
+    { label: "Out For Delivery", count: 2, icon: FaTruck, color: "primary" },
+    { label: "Delivered", count: 10, icon: FaBoxOpen, color: "success" },
+    { label: "Cancelled", count: 1, icon: FaTimesCircle, color: "error" },
+    { label: "Returned", count: 1, icon: FaUndo, color: "warning" },
+    { label: "Failed To Deliver", count: 2, icon: FaBan, color: "error" },
+  ];
+
+  // Wallet data (static)
   const walletItems = [
     {
       label: "Withdrawable Balance",
@@ -74,89 +106,228 @@ const DashboardHero = () => {
     },
   ];
 
+  // Custom tooltip for chart
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      return (
+        <Box
+          sx={{
+            bgcolor: "white",
+            p: 1.5,
+            border: "1px solid",
+            borderColor: "grey.200",
+            borderRadius: 2,
+            boxShadow: 2,
+          }}
+        >
+          <Typography variant="body2" fontWeight="bold">
+            {label}
+          </Typography>
+          <Typography variant="body2" color="primary.main">
+            Sales: {formatNaira(payload[0]?.value)}
+          </Typography>
+          <Typography variant="body2" color="success.main">
+            Profit: {formatNaira(payload[1]?.value)}
+          </Typography>
+        </Box>
+      );
+    }
+    return null;
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-6 lg:p-8">
+    <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, bgcolor: "#f5f5f5", minHeight: "100vh" }}>
       {/* Welcome Header */}
-      <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-800">
+      <Paper
+        elevation={0}
+        sx={{
+          p: { xs: 2, sm: 3 },
+          mb: 3,
+          borderRadius: 3,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 2,
+          bgcolor: "white",
+          border: "1px solid",
+          borderColor: "grey.100",
+          flexDirection: isMobile ? "column" : "row",
+          textAlign: isMobile ? "center" : "left",
+        }}
+      >
+        <Box>
+          <Typography variant="h5" fontWeight="bold" color="text.primary">
             Welcome back, {vendorInfo?.name || vendorInfo?.email?.split("@")[0] || "Vendor"}!
-          </h1>
-          <p className="text-gray-500 mt-1">
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
             Here's what's happening with your store today.
-          </p>
-        </div>
+          </Typography>
+        </Box>
         <Link href="/vendor/products">
-          <button className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg shadow-md transition duration-200">
+          <Button variant="contained" sx={{ textTransform: "none", borderRadius: 2 }}>
             Manage Products
-          </button>
+          </Button>
         </Link>
-      </div>
+      </Paper>
 
       {/* Order Analytics Section */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
-          <h2 className="text-xl font-semibold text-gray-800">Order Analytics</h2>
-          <button className="text-sm text-gray-500 hover:text-gray-700 mt-2 sm:mt-0">
+      <Paper
+        elevation={0}
+        sx={{
+          p: { xs: 2, sm: 3 },
+          mb: 3,
+          borderRadius: 3,
+          bgcolor: "white",
+          border: "1px solid",
+          borderColor: "grey.100",
+        }}
+      >
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+          <Typography variant="h6" fontWeight="bold">
+            Order Analytics
+          </Typography>
+          <Button variant="text" size="small" sx={{ textTransform: "none" }}>
             Last 30 days
-          </button>
-        </div>
+          </Button>
+        </Box>
+        <Divider sx={{ mb: 3 }} />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Grid container spacing={2}>
           {orderStats.map((stat, idx) => (
-            <div
-              key={idx}
-              className="bg-gray-50 rounded-xl p-4 hover:shadow-md transition duration-200"
-            >
-              <div className="flex items-center justify-between">
-                <div className={`p-2 rounded-lg ${stat.color}`}>
-                  <stat.icon className="w-5 h-5" />
-                </div>
-                <span className="text-2xl font-bold text-gray-800">{stat.count}</span>
-              </div>
-              <p className="text-sm text-gray-600 mt-2">{stat.label}</p>
-            </div>
+            <Grid item xs={6} sm={4} md={3} key={idx}>
+              <Card variant="outlined" sx={{ borderRadius: 2, transition: "all 0.2s", "&:hover": { boxShadow: 2 } }}>
+                <CardContent>
+                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+                    <stat.icon size={20} color={theme.palette[stat.color]?.main || "#9e9e9e"} />
+                    <Typography variant="h5" fontWeight="bold">
+                      {stat.count}
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary">
+                    {stat.label}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
           ))}
-        </div>
-      </div>
+        </Grid>
+      </Paper>
+
+      {/* Sales & Profit Chart Section */}
+      <Paper
+        elevation={0}
+        sx={{
+          p: { xs: 2, sm: 3 },
+          mb: 3,
+          borderRadius: 3,
+          bgcolor: "white",
+          border: "1px solid",
+          borderColor: "grey.100",
+          overflow: "hidden",
+        }}
+      >
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+          <Typography variant="h6" fontWeight="bold">
+            Sales & Profit Overview
+          </Typography>
+          <Button variant="text" size="small" sx={{ textTransform: "none" }}>
+            Last 7 days
+          </Button>
+        </Box>
+        <Divider sx={{ mb: 3 }} />
+
+        <ResponsiveContainer width="100%" height={350}>
+          <LineChart
+            data={chartData}
+            margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+            <XAxis dataKey="day" tick={{ fontSize: 12 }} />
+            <YAxis
+              tickFormatter={(value) => formatNaira(value).replace("₦", "")}
+              tick={{ fontSize: 12 }}
+            />
+            <Tooltip content={<CustomTooltip />} />
+            <Legend verticalAlign="top" height={36} />
+            <Line
+              type="monotone"
+              dataKey="sales"
+              stroke={theme.palette.primary.main}
+              strokeWidth={2}
+              dot={{ r: 4, strokeWidth: 2 }}
+              activeDot={{ r: 6 }}
+              name="Sales"
+            />
+            <Line
+              type="monotone"
+              dataKey="profit"
+              stroke={theme.palette.success.main}
+              strokeWidth={2}
+              dot={{ r: 4, strokeWidth: 2 }}
+              activeDot={{ r: 6 }}
+              name="Profit"
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </Paper>
 
       {/* Vendor Wallet Section */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-        <h2 className="text-xl font-semibold text-gray-800 mb-6">Vendor Wallet</h2>
+      <Paper
+        elevation={0}
+        sx={{
+          p: { xs: 2, sm: 3 },
+          borderRadius: 3,
+          bgcolor: "white",
+          border: "1px solid",
+          borderColor: "grey.100",
+        }}
+      >
+        <Typography variant="h6" fontWeight="bold" gutterBottom>
+          Vendor Wallet
+        </Typography>
+        <Divider sx={{ mb: 3 }} />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <Grid container spacing={2}>
           {walletItems.map((item, idx) => (
-            <div
-              key={idx}
-              className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-5 border border-gray-100 hover:shadow-lg transition-all duration-200"
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-blue-50 rounded-lg">
-                  <Image
-                    src={item.icon}
-                    alt={item.label}
-                    width={32}
-                    height={32}
-                    className="w-8 h-8"
-                  />
-                </div>
-                <h3 className="text-gray-600 text-sm font-medium">{item.label}</h3>
-              </div>
-              <p className="text-2xl font-bold text-gray-800 mb-3">
-                {formatNaira(item.amount)}
-              </p>
-              {item.action && (
-                <Link href={item.action.link}>
-                  <button className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg text-sm font-medium transition">
-                    {item.action.text}
-                  </button>
-                </Link>
-              )}
-            </div>
+            <Grid item xs={12} sm={6} md={4} key={idx}>
+              <Card variant="outlined" sx={{ borderRadius: 2, height: "100%", transition: "all 0.2s", "&:hover": { boxShadow: 2 } }}>
+                <CardContent>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+                    <Box
+                      sx={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 2,
+                        bgcolor: "primary.light",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Image src={item.icon} alt={item.label} width={24} height={24} />
+                    </Box>
+                    <Typography variant="body2" color="text.secondary">
+                      {item.label}
+                    </Typography>
+                  </Box>
+                  <Typography variant="h5" fontWeight="bold" sx={{ mb: 2 }}>
+                    {formatNaira(item.amount)}
+                  </Typography>
+                  {item.action && (
+                    <Link href={item.action.link}>
+                      <Button variant="contained" fullWidth sx={{ textTransform: "none", borderRadius: 2 }}>
+                        {item.action.text}
+                      </Button>
+                    </Link>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
           ))}
-        </div>
-      </div>
-    </div>
+        </Grid>
+      </Paper>
+    </Box>
   );
 };
 

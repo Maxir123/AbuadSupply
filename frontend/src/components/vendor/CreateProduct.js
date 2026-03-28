@@ -1,11 +1,20 @@
 // Third-party library imports
 import "quill/dist/quill.snow.css";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import Image from "next/image";
 import { useDispatch, useSelector } from "react-redux";
 import { useRouter } from "next/router";
 import { toast } from "react-toastify";
-import { AiOutlinePlus, AiOutlineUpload, AiOutlineDelete } from "react-icons/ai";
+import {
+  AiOutlinePlus,
+  AiOutlineUpload,
+  AiOutlineDelete,
+  AiOutlineTag,
+  AiOutlineShoppingCart,
+  AiOutlineDollar,
+  AiOutlinePicture,
+  AiOutlineStar,
+} from "react-icons/ai";
 
 // MUI Imports
 import {
@@ -17,11 +26,9 @@ import {
   Grid,
   Chip,
   IconButton,
-  Tooltip,
   useMediaQuery,
   useTheme,
   CircularProgress,
-  Alert,
   FormControlLabel,
   Switch,
   MenuItem,
@@ -29,6 +36,7 @@ import {
   InputLabel,
   FormControl,
   Divider,
+  InputAdornment,
 } from "@mui/material";
 
 // Local imports
@@ -37,7 +45,7 @@ import { fetchCategories } from "@/redux/slices/categorySlice";
 import { fetchAllBrands } from "@/redux/slices/brandSlice";
 import RichTextEditor from "../common/RichTextEditor";
 
-// Category-specific attributes
+// Category-specific attributes (unchanged)
 const categoryAttributes = {
   clothing: ["size", "color", "material", "gender"],
   vehicles: ["model", "make", "year", "mileage", "fuelType"],
@@ -50,14 +58,15 @@ const categoryAttributes = {
   jobs: ["jobType", "location", "salary", "experienceLevel", "industry"],
 };
 
-// Nigerian Naira formatter
-const formatNaira = (amount) => {
-  return new Intl.NumberFormat("en-NG", {
-    style: "currency",
-    currency: "NGN",
-    minimumFractionDigits: 2,
-  }).format(amount);
-};
+// Section header component (unchanged)
+const SectionHeader = ({ icon: Icon, title }) => (
+  <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+    <Icon size={20} color="#1976d2" />
+    <Typography variant="h6" fontWeight="bold">
+      {title}
+    </Typography>
+  </Box>
+);
 
 const CreateProduct = () => {
   const theme = useTheme();
@@ -66,9 +75,11 @@ const CreateProduct = () => {
   const router = useRouter();
   const { vendorInfo } = useSelector((state) => state.vendors);
   const { categories } = useSelector((state) => state.categories);
-  const { brands } = useSelector((state) => state.brands);
+  const { brands } = useSelector((state) => state.brands); // still used for potential other things
 
-  const [images, setImages] = useState([]);
+  // State: images preview URLs and actual File objects
+  const [imagePreviews, setImagePreviews] = useState([]);
+  const [imageFiles, setImageFiles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [productData, setProductData] = useState({
     name: "",
@@ -86,7 +97,7 @@ const CreateProduct = () => {
 
   const [errors, setErrors] = useState({});
 
-  // Derived data
+  // Derived data (unchanged)
   const subcategories = useMemo(() => {
     if (!productData.mainCategory) return [];
     const main = categories?.find((c) => c.slug === productData.mainCategory);
@@ -99,11 +110,18 @@ const CreateProduct = () => {
     return sub?.subsubcategories || [];
   }, [subcategories, productData.subCategory]);
 
-  // Fetch initial data
+  // Fetch initial data (unchanged)
   useEffect(() => {
     dispatch(fetchCategories());
     dispatch(fetchAllBrands());
   }, [dispatch]);
+
+  // Clean up preview URLs when component unmounts
+  useEffect(() => {
+    return () => {
+      imagePreviews.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [imagePreviews]);
 
   const handleCategoryChange = (e) => {
     const { value } = e.target;
@@ -137,19 +155,18 @@ const CreateProduct = () => {
 
   const handleImageChange = (e) => {
     const files = Array.from(e.target.files || []);
-    files.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (reader.readyState === 2) {
-          setImages((old) => [...old, reader.result]);
-        }
-      };
-      reader.readAsDataURL(file);
-    });
+    // Create preview URLs and store files
+    const newPreviews = files.map((file) => URL.createObjectURL(file));
+    setImagePreviews((prev) => [...prev, ...newPreviews]);
+    setImageFiles((prev) => [...prev, ...files]);
+    if (errors.images) setErrors((prev) => ({ ...prev, images: "" }));
   };
 
   const removeImage = (index) => {
-    setImages((prev) => prev.filter((_, i) => i !== index));
+    // Revoke the object URL to avoid memory leaks
+    URL.revokeObjectURL(imagePreviews[index]);
+    setImagePreviews((prev) => prev.filter((_, i) => i !== index));
+    setImageFiles((prev) => prev.filter((_, i) => i !== index));
     if (errors.images) setErrors((prev) => ({ ...prev, images: "" }));
   };
 
@@ -162,10 +179,10 @@ const CreateProduct = () => {
     if (!productData.name.trim()) newErrors.name = "Product name is required";
     if (!productData.mainCategory) newErrors.mainCategory = "Main category is required";
     if (!productData.subCategory) newErrors.subCategory = "Subcategory is required";
-    if (!productData.brand) newErrors.brand = "Brand is required";
+    // Brand is optional, no validation
     if (!productData.originalPrice) newErrors.originalPrice = "Original price is required";
     if (!productData.stock) newErrors.stock = "Stock is required";
-    if (images.length === 0) newErrors.images = "At least one image is required";
+    if (imageFiles.length === 0) newErrors.images = "At least one image is required";
     if (productData.discountPrice && Number(productData.discountPrice) >= Number(productData.originalPrice)) {
       newErrors.discountPrice = "Discount price must be less than original price";
     }
@@ -179,14 +196,52 @@ const CreateProduct = () => {
 
     setLoading(true);
     const form = new FormData();
-    Object.entries(productData).forEach(([key, val]) => {
-      if (key !== "attributes") form.append(key, val);
+
+    // Required fields (excluding brand, which is optional)
+    const requiredFields = [
+      "name",
+      "description",
+      "mainCategory",
+      "subCategory",
+      "originalPrice",
+      "discountPrice",
+      "stock",
+      "isFeatured",
+    ];
+    requiredFields.forEach((field) => {
+      form.append(field, productData[field]);
     });
-    form.append("vendorId", vendorInfo._id);
-    Object.entries(productData.attributes).forEach(([k, v]) => {
-      form.append(`attributes[${k}]`, v);
+
+    // Optional sub-subcategory
+    if (productData.subSubCategory) {
+      form.append("subSubCategory", productData.subSubCategory);
+    }
+
+    // Brand: only if non-empty
+    if (productData.brand?.trim()) {
+      form.append("brand", productData.brand.trim());
+    }
+
+    // Vendor ID
+    if (vendorInfo?._id) {
+      form.append("vendorId", vendorInfo._id);
+    } else {
+      toast.error("Vendor information missing. Please log in again.");
+      setLoading(false);
+      return;
+    }
+
+    // Attributes: only add if value is truthy
+    Object.entries(productData.attributes || {}).forEach(([key, value]) => {
+      if (value) {
+        form.append(`attributes[${key}]`, value);
+      }
     });
-    images.forEach((dataUrl) => form.append("images", dataUrl));
+
+    // Images: actual File objects
+    imageFiles.forEach((file) => {
+      form.append("images", file);
+    });
 
     try {
       const result = await dispatch(createProduct(form));
@@ -197,7 +252,8 @@ const CreateProduct = () => {
         const msg = result.payload?.message || "An error occurred while creating the product.";
         toast.error(msg);
       }
-    } catch {
+    } catch (err) {
+      console.error("Product creation error:", err);
       toast.error("An unexpected error occurred.");
     } finally {
       setLoading(false);
@@ -253,9 +309,7 @@ const CreateProduct = () => {
           {/* Product Information */}
           <Grid item xs={12}>
             <Paper elevation={0} sx={{ p: 3, borderRadius: 3, bgcolor: "white", border: "1px solid", borderColor: "grey.100" }}>
-              <Typography variant="h6" fontWeight="bold" gutterBottom>
-                Product Information
-              </Typography>
+              <SectionHeader icon={AiOutlineTag} title="Product Information" />
               <Divider sx={{ mb: 3 }} />
 
               <TextField
@@ -280,9 +334,7 @@ const CreateProduct = () => {
           {/* Category & Brand */}
           <Grid item xs={12}>
             <Paper elevation={0} sx={{ p: 3, borderRadius: 3, bgcolor: "white", border: "1px solid", borderColor: "grey.100" }}>
-              <Typography variant="h6" fontWeight="bold" gutterBottom>
-                Category & Brand
-              </Typography>
+              <SectionHeader icon={AiOutlineShoppingCart} title="Category & Brand" />
               <Divider sx={{ mb: 3 }} />
 
               <Grid container spacing={2}>
@@ -351,25 +403,14 @@ const CreateProduct = () => {
                 </Grid>
 
                 <Grid item xs={12} sm={6} md={3}>
-                  <FormControl fullWidth error={!!errors.brand}>
-                    <InputLabel>Brand</InputLabel>
-                    <Select
-                      value={productData.brand}
-                      onChange={(e) => setProductData((prev) => ({ ...prev, brand: e.target.value }))}
-                      label="Brand"
-                      required
-                    >
-                      <MenuItem value="">Choose a brand</MenuItem>
-                      {brands?.map((brand) => (
-                        <MenuItem key={brand.name} value={brand.name}>
-                          {brand.name}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                    {errors.brand && (
-                      <Typography variant="caption" color="error">{errors.brand}</Typography>
-                    )}
-                  </FormControl>
+                  <TextField
+                    fullWidth
+                    label="Brand (optional)"
+                    name="brand"
+                    value={productData.brand}
+                    onChange={handleInputChange}
+                    placeholder="e.g., Nike, Apple, etc."
+                  />
                 </Grid>
               </Grid>
             </Paper>
@@ -378,9 +419,7 @@ const CreateProduct = () => {
           {/* Price & Stock */}
           <Grid item xs={12}>
             <Paper elevation={0} sx={{ p: 3, borderRadius: 3, bgcolor: "white", border: "1px solid", borderColor: "grey.100" }}>
-              <Typography variant="h6" fontWeight="bold" gutterBottom>
-                Pricing & Stock
-              </Typography>
+              <SectionHeader icon={AiOutlineDollar} title="Pricing & Stock" />
               <Divider sx={{ mb: 3 }} />
 
               <Grid container spacing={2}>
@@ -395,7 +434,7 @@ const CreateProduct = () => {
                     error={!!errors.originalPrice}
                     helperText={errors.originalPrice}
                     required
-                    InputProps={{ startAdornment: <span>₦</span> }}
+                    InputProps={{ startAdornment: <InputAdornment position="start">₦</InputAdornment> }}
                   />
                 </Grid>
                 <Grid item xs={12} sm={4}>
@@ -408,7 +447,7 @@ const CreateProduct = () => {
                     onChange={handleInputChange}
                     error={!!errors.discountPrice}
                     helperText={errors.discountPrice}
-                    InputProps={{ startAdornment: <span>₦</span> }}
+                    InputProps={{ startAdornment: <InputAdornment position="start">₦</InputAdornment> }}
                   />
                 </Grid>
                 <Grid item xs={12} sm={4}>
@@ -432,9 +471,7 @@ const CreateProduct = () => {
           {categoryAttributes[productData.mainCategory]?.length > 0 && (
             <Grid item xs={12}>
               <Paper elevation={0} sx={{ p: 3, borderRadius: 3, bgcolor: "white", border: "1px solid", borderColor: "grey.100" }}>
-                <Typography variant="h6" fontWeight="bold" gutterBottom>
-                  Product Attributes
-                </Typography>
+                <SectionHeader icon={AiOutlineTag} title="Product Attributes" />
                 <Divider sx={{ mb: 3 }} />
                 <Grid container spacing={2}>
                   {categoryAttributes[productData.mainCategory].map((attr) => (
@@ -456,9 +493,7 @@ const CreateProduct = () => {
           {/* Images */}
           <Grid item xs={12}>
             <Paper elevation={0} sx={{ p: 3, borderRadius: 3, bgcolor: "white", border: "1px solid", borderColor: "grey.100" }}>
-              <Typography variant="h6" fontWeight="bold" gutterBottom>
-                Product Images
-              </Typography>
+              <SectionHeader icon={AiOutlinePicture} title="Product Images" />
               <Divider sx={{ mb: 3 }} />
 
               <Box
@@ -490,19 +525,18 @@ const CreateProduct = () => {
                   </Typography>
                 )}
                 <Typography variant="caption" color="text.secondary" display="block">
-                  You can select multiple images
+                  You can select multiple images (JPEG, PNG, WEBP)
                 </Typography>
               </Box>
 
-              {images.length > 0 && (
-                <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
-                  {images.map((src, idx) => (
-                    <Box key={idx} sx={{ position: "relative" }}>
+              {imagePreviews.length > 0 && (
+                <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: 2 }}>
+                  {imagePreviews.map((src, idx) => (
+                    <Box key={idx} sx={{ position: "relative", aspectRatio: "1/1" }}>
                       <Image
                         src={src}
                         alt={`Preview ${idx}`}
-                        width={100}
-                        height={100}
+                        fill
                         style={{ objectFit: "cover", borderRadius: 8 }}
                         unoptimized
                       />
@@ -523,6 +557,8 @@ const CreateProduct = () => {
           {/* Featured Product Switch */}
           <Grid item xs={12}>
             <Paper elevation={0} sx={{ p: 3, borderRadius: 3, bgcolor: "white", border: "1px solid", borderColor: "grey.100" }}>
+              <SectionHeader icon={AiOutlineStar} title="Featured" />
+              <Divider sx={{ mb: 3 }} />
               <FormControlLabel
                 control={
                   <Switch
@@ -541,24 +577,26 @@ const CreateProduct = () => {
 
           {/* Submit Button */}
           <Grid item xs={12}>
-            <Button
-              type="submit"
-              variant="contained"
-              size="large"
-              disabled={loading}
-              startIcon={loading ? <CircularProgress size={20} /> : <AiOutlinePlus />}
-              sx={{
-                py: 1.5,
-                borderRadius: 2,
-                textTransform: "none",
-                fontSize: "1rem",
-                fontWeight: 600,
-                width: "100%",
-                maxWidth: isMobile ? "100%" : "300px",
-              }}
-            >
-              {loading ? "Creating..." : "Create Product"}
-            </Button>
+            <Box sx={{ display: "flex", justifyContent: "center" }}>
+              <Button
+                type="submit"
+                variant="contained"
+                size="large"
+                disabled={loading}
+                startIcon={loading ? <CircularProgress size={20} /> : <AiOutlinePlus />}
+                sx={{
+                  py: 1.5,
+                  px: 4,
+                  borderRadius: 2,
+                  textTransform: "none",
+                  fontSize: "1rem",
+                  fontWeight: 600,
+                  width: { xs: "100%", sm: "auto" },
+                }}
+              >
+                {loading ? "Creating..." : "Create Product"}
+              </Button>
+            </Box>
           </Grid>
         </Grid>
       </form>

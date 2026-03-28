@@ -59,6 +59,58 @@ const formatNaira = (amount) => {
   }).format(amount);
 };
 
+// Mobile Product Card Component
+const MobileProductCard = ({ product, onEdit, onDelete, onView }) => {
+  const price = product.discountPrice || product.originalPrice;
+  return (
+    <Card
+      sx={{
+        mb: 2,
+        borderRadius: 2,
+        boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+        "&:hover": { boxShadow: "0 2px 6px rgba(0,0,0,0.1)" },
+      }}
+    >
+      <CardContent sx={{ p: 2 }}>
+        <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+          {product.name}
+        </Typography>
+        <Typography variant="body2" color="text.secondary" gutterBottom>
+          Brand: {product.brand?.name || "No brand"}
+        </Typography>
+        <Typography variant="body2" fontWeight="500" color="primary.main" gutterBottom>
+          {formatNaira(price)}
+        </Typography>
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 1 }}>
+          <Chip
+            label={`Stock: ${product.stock}`}
+            size="small"
+            color={product.stock > 10 ? "success" : product.stock > 0 ? "warning" : "error"}
+            variant="outlined"
+          />
+          <Box sx={{ display: "flex", gap: 1 }}>
+            <Tooltip title="Edit">
+              <IconButton size="small" color="primary" onClick={() => onEdit(product)}>
+                <AiOutlineEdit size={18} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Delete">
+              <IconButton size="small" color="error" onClick={() => onDelete(product.id)}>
+                <AiOutlineDelete size={18} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="View">
+              <IconButton size="small" color="info" onClick={() => onView(product.id)}>
+                <AiOutlineEye size={18} />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        </Box>
+      </CardContent>
+    </Card>
+  );
+};
+
 const AllProducts = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -115,7 +167,7 @@ const AllProducts = () => {
       originalPrice: product.originalPrice,
       discountPrice: product.discountPrice || "",
       stock: product.stock,
-      brand: product.brand,
+      brand: product.brand?.name || "No brand",
       mainCategory: product.mainCategory,
       subCategory: product.subCategory,
       subSubCategory: product.subSubCategory,
@@ -123,7 +175,7 @@ const AllProducts = () => {
     setMainCategory(product.mainCategory);
     setSubCategory(product.subCategory);
     setSubSubCategory(product.subSubCategory);
-    setSelectedBrand(product.brand);
+    setSelectedBrand(product.brand?.name || "No brand");
     setOpenEditModal(true);
   };
 
@@ -256,13 +308,13 @@ const AllProducts = () => {
       filtered = filtered.filter((product) => product.subSubCategory === subSubCategory);
     }
     if (selectedBrand) {
-      filtered = filtered.filter((product) => product.brand === selectedBrand);
+      filtered = filtered.filter((product) => product.brand?.name || "No brand" === selectedBrand);
     }
     if (searchQuery) {
       filtered = filtered.filter(
         (product) =>
           product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          product.brand.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          product.brand?.name || "No brand".toLowerCase().includes(searchQuery.toLowerCase()) ||
           product._id.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
@@ -276,7 +328,7 @@ const AllProducts = () => {
     searchQuery,
   ]);
 
-  // Table columns
+  // Table columns (desktop)
   const columns = [
     {
       field: "id",
@@ -486,44 +538,71 @@ const AllProducts = () => {
         <SearchProducts searchQuery={searchQuery} handleSearchChange={handleSearchChange} />
       </Paper>
 
-      {/* Products Table */}
-      <Paper
-        elevation={0}
-        sx={{
-          borderRadius: 3,
-          overflow: "auto",
-          border: "1px solid",
-          borderColor: "grey.100",
-          bgcolor: "white",
-        }}
-      >
-        <Box sx={{ minWidth: isMobile ? "800px" : "100%" }}>
-          <DataGrid
-            rows={rows}
-            columns={columns}
-            pageSize={10}
-            rowsPerPageOptions={[10, 25, 50]}
-            autoHeight
-            disableSelectionOnClick
-            sx={{
-              border: "none",
-              "& .MuiDataGrid-columnHeaders": {
-                backgroundColor: "#fafafa",
-                borderBottom: "1px solid #e5e7eb",
-                fontSize: "0.875rem",
-                fontWeight: 600,
-              },
-              "& .MuiDataGrid-cell": {
-                borderBottom: "1px solid #f3f4f6",
-                py: 1.5,
-              },
-              "& .MuiDataGrid-row:hover": {
-                backgroundColor: "#f9fafb",
-              },
-            }}
-          />
+      {/* Content: DataGrid (desktop) or cards (mobile) */}
+      {isMobile ? (
+        <Box sx={{ display: "flex", flexDirection: "column" }}>
+          {filteredProducts.length === 0 ? (
+            <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", py: 4 }}>
+              No products found.
+            </Typography>
+          ) : (
+            filteredProducts.map((product) => (
+              <MobileProductCard
+                key={product._id}
+                product={{
+                  id: product._id,
+                  name: product.name,
+                  brand: product.brand?.name || "No brand",
+                  originalPrice: product.originalPrice,
+                  discountPrice: product.discountPrice,
+                  stock: product.stock,
+                }}
+                onEdit={handleProductEdit}
+                onDelete={openDeleteModalHandler}
+                onView={handleViewProduct}
+              />
+            ))
+          )}
         </Box>
-      </Paper>
+      ) : (
+        <Paper
+          elevation={0}
+          sx={{
+            borderRadius: 3,
+            overflow: "auto",
+            border: "1px solid",
+            borderColor: "grey.100",
+            bgcolor: "white",
+          }}
+        >
+          <Box sx={{ minWidth: "100%" }}>
+            <DataGrid
+              rows={rows}
+              columns={columns}
+              pageSize={10}
+              rowsPerPageOptions={[10, 25, 50]}
+              autoHeight
+              disableSelectionOnClick
+              sx={{
+                border: "none",
+                "& .MuiDataGrid-columnHeaders": {
+                  backgroundColor: "#fafafa",
+                  borderBottom: "1px solid #e5e7eb",
+                  fontSize: "0.875rem",
+                  fontWeight: 600,
+                },
+                "& .MuiDataGrid-cell": {
+                  borderBottom: "1px solid #f3f4f6",
+                  py: 1.5,
+                },
+                "& .MuiDataGrid-row:hover": {
+                  backgroundColor: "#f9fafb",
+                },
+              }}
+            />
+          </Box>
+        </Paper>
+      )}
 
       {/* Edit Product Modal (external component) */}
       <EditProductModal
@@ -571,7 +650,7 @@ const AllProducts = () => {
                     </Typography>
                     <Divider sx={{ my: 1 }} />
                     <Typography variant="body2" sx={{ mb: 1 }}>
-                      <strong>Brand:</strong> {product.brand}
+                      <strong>Brand:</strong> {product.brand?.name || "No brand"}
                     </Typography>
                     <Typography variant="body2" sx={{ mb: 1 }}>
                       <strong>Category:</strong> {product.mainCategory}

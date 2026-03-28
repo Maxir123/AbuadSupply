@@ -18,7 +18,10 @@ import {
   Typography,
   useMediaQuery,
   useTheme,
+  Card,
+  CardContent,
 } from "@mui/material";
+import { DataGrid } from "@mui/x-data-grid";
 import {
   AiOutlineDelete,
   AiOutlineEdit,
@@ -42,7 +45,72 @@ import {
   fetchSubcategories,
   fetchSubSubcategories,
 } from "@/redux/slices/categorySlice";
-import ProductTable from "../common/ProductTable";
+
+// Nigerian Naira formatter (optional, though coupons are percentages)
+const formatNaira = (amount) => {
+  return new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    minimumFractionDigits: 2,
+  }).format(amount);
+};
+
+// Mobile Coupon Card
+const MobileCouponCard = ({ coupon, onStatusToggle, onEdit, onDelete }) => {
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "N/A";
+    return new Date(dateStr).toLocaleDateString();
+  };
+
+  return (
+    <Card
+      sx={{
+        mb: 2,
+        borderRadius: 2,
+        boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+        "&:hover": { boxShadow: "0 2px 6px rgba(0,0,0,0.1)" },
+      }}
+    >
+      <CardContent sx={{ p: 2 }}>
+        <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+          {coupon.name}
+        </Typography>
+        <Typography variant="body2" color="text.secondary" gutterBottom>
+          Value: {coupon.valueDisplay}
+        </Typography>
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 1 }}>
+          <Chip
+            label={coupon.type}
+            size="small"
+            color={coupon.type === "Purchase" ? "success" : "primary"}
+            variant="outlined"
+          />
+          <Switch
+            checked={coupon.status === "active"}
+            onChange={() => onStatusToggle(coupon.id, coupon.status)}
+            color="primary"
+            size="small"
+          />
+        </Box>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+          Valid: {formatDate(coupon.validity.start)} – {formatDate(coupon.validity.end)}
+        </Typography>
+        <Box sx={{ display: "flex", gap: 1, justifyContent: "flex-end", mt: 2 }}>
+          <Tooltip title="Edit">
+            <IconButton size="small" color="primary" onClick={() => onEdit(coupon)}>
+              <AiOutlineEdit size={18} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Delete">
+            <IconButton size="small" color="error" onClick={() => onDelete(coupon.id)}>
+              <AiOutlineDelete size={18} />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      </CardContent>
+    </Card>
+  );
+};
 
 const AllCoupons = () => {
   const theme = useTheme();
@@ -229,7 +297,7 @@ const AllCoupons = () => {
     setSelectedProducts(selected);
   };
 
-  // Table columns
+  // DataGrid columns (desktop)
   const columns = [
     { field: "name", headerName: "Name", minWidth: 150, flex: 1 },
     { field: "valueDisplay", headerName: "Value", minWidth: 80, flex: 0.7 },
@@ -259,7 +327,7 @@ const AllCoupons = () => {
         const end = row.validity.end
           ? new Date(row.validity.end).toLocaleDateString()
           : "N/A";
-        return `${start} - ${end}`;
+        return `${start} – ${end}`;
       },
     },
     {
@@ -279,15 +347,12 @@ const AllCoupons = () => {
       field: "actions",
       headerName: "Actions",
       minWidth: 100,
-      flex: 1,
+      flex: 0.6,
+      sortable: false,
       renderCell: ({ row }) => (
         <Box sx={{ display: "flex", gap: 1 }}>
           <Tooltip title="Edit">
-            <IconButton
-              color="primary"
-              onClick={() => handleEdit(row)}
-              size="small"
-            >
+            <IconButton color="primary" onClick={() => handleEdit(row)} size="small">
               <AiOutlineEdit size={18} />
             </IconButton>
           </Tooltip>
@@ -329,7 +394,7 @@ const AllCoupons = () => {
 
   return (
     <Box sx={{ p: { xs: 1, sm: 2, md: 3 }, bgcolor: "#f5f5f5", minHeight: "100vh" }}>
-      {/* Header Section */}
+      {/* Header */}
       <Paper
         elevation={0}
         sx={{
@@ -341,7 +406,7 @@ const AllCoupons = () => {
           alignItems: "center",
           flexWrap: "wrap",
           gap: 2,
-          backgroundColor: "white",
+          bgcolor: "white",
           border: "1px solid",
           borderColor: "grey.100",
           flexDirection: isMobile ? "column" : "row",
@@ -374,14 +439,14 @@ const AllCoupons = () => {
         </Button>
       </Paper>
 
-      {/* Search Section */}
+      {/* Search */}
       <Paper
         elevation={0}
         sx={{
           p: { xs: 1.5, sm: 2 },
           mb: 2,
           borderRadius: 3,
-          backgroundColor: "white",
+          bgcolor: "white",
           border: "1px solid",
           borderColor: "grey.100",
         }}
@@ -403,37 +468,75 @@ const AllCoupons = () => {
         />
       </Paper>
 
-      {/* Table */}
-      <Paper
-        elevation={0}
-        sx={{
-          borderRadius: 3,
-          overflow: "auto",
-          border: "1px solid",
-          borderColor: "grey.100",
-          backgroundColor: "white",
-        }}
-      >
-        <Box sx={{ minWidth: isMobile ? "700px" : "100%" }}>
-          <ProductTable
+      {/* Content: DataGrid (desktop) or cards (mobile) */}
+      {isMobile ? (
+        <Box sx={{ display: "flex", flexDirection: "column" }}>
+          {filteredCoupons.length === 0 ? (
+            <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", py: 4 }}>
+              No coupons found.
+            </Typography>
+          ) : (
+            filteredCoupons.map((coupon) => (
+              <MobileCouponCard
+                key={coupon._id}
+                coupon={{
+                  id: coupon._id,
+                  name: coupon.name,
+                  valueDisplay: coupon.value ? `${coupon.value}%` : "0%",
+                  type: coupon.type === "Purchase" ? "Purchase" : "Delivery",
+                  validity: {
+                    start: coupon.validityStart,
+                    end: coupon.validityEnd,
+                  },
+                  status: coupon.status,
+                }}
+                onStatusToggle={handleStatusToggle}
+                onEdit={handleEdit}
+                onDelete={() => {
+                  setDeleteTargetId(coupon._id);
+                  setDeleteDialog(true);
+                }}
+              />
+            ))
+          )}
+        </Box>
+      ) : (
+        <Paper
+          elevation={0}
+          sx={{
+            borderRadius: 3,
+            overflow: "auto",
+            border: "1px solid",
+            borderColor: "grey.100",
+            bgcolor: "white",
+          }}
+        >
+          <DataGrid
             rows={rows}
             columns={columns}
-            getRowId={(row) => row.id}
+            pageSize={10}
+            rowsPerPageOptions={[10, 25, 50]}
+            autoHeight
+            disableSelectionOnClick
             sx={{
-              "& .MuiDataGrid-root": {
-                border: "none",
+              border: "none",
+              "& .MuiDataGrid-columnHeaders": {
+                backgroundColor: "#fafafa",
+                borderBottom: "1px solid #e5e7eb",
+                fontSize: "0.875rem",
+                fontWeight: 600,
               },
               "& .MuiDataGrid-cell": {
-                py: 2,
+                borderBottom: "1px solid #f3f4f6",
+                py: 1.5,
               },
-              "& .MuiDataGrid-columnHeaders": {
+              "& .MuiDataGrid-row:hover": {
                 backgroundColor: "#f9fafb",
-                borderBottom: "1px solid #e5e7eb",
               },
             }}
           />
-        </Box>
-      </Paper>
+        </Paper>
+      )}
 
       {/* Create/Edit Dialog */}
       <Dialog
@@ -635,7 +738,7 @@ const AllCoupons = () => {
             </TextField>
             {!subSubCategory && filteredProducts.length === 0 && (
               <Typography variant="caption" color="text.secondary">
-                Select a sub-sub category to see products.
+                Select a sub‑sub category to see products.
               </Typography>
             )}
           </Box>

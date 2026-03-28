@@ -27,6 +27,26 @@ import { AiOutlineDelete, AiOutlineEdit, AiOutlineSearch } from 'react-icons/ai'
 import EditProductModal from '../common/ProductEditModal';
 import Image from 'next/image';
 
+// Utility to safely handle image URLs
+const getSafeImageUrl = (url) => {
+  if (!url) return "/fallback.jpg";
+
+  try {
+    const parsed = new URL(url);
+
+    // only allow trusted hosts
+    if (
+      parsed.hostname === "images.unsplash.com" ||
+      parsed.hostname === "res.cloudinary.com"
+    ) {
+      return url;
+    }
+
+    return "/fallback.jpg";
+  } catch {
+    return "/fallback.jpg";
+  }
+};
 // Mobile Category Card
 const MobileCategoryCard = ({ category, onEdit, onDelete }) => {
   return (
@@ -48,7 +68,7 @@ const MobileCategoryCard = ({ category, onEdit, onDelete }) => {
         {category.imageUrl && (
           <Box sx={{ mt: 1 }}>
             <Image
-              src={category.imageUrl}
+              src={getSafeImageUrl(category.imageUrl)}
               alt={category.name}
               width={80}
               height={80}
@@ -149,6 +169,26 @@ const CategoryTable = () => {
     setDeleteDialogOpen(true);
   };
 
+  const getSafeImageUrl = (url) => {
+  if (!url) return "/fallback.jpg";
+
+  try {
+    const parsed = new URL(url);
+
+    // only allow valid image hosts
+    if (
+      parsed.hostname === "images.unsplash.com" ||
+      parsed.hostname === "res.cloudinary.com"
+    ) {
+      return url;
+    }
+
+    return "/fallback.jpg";
+  } catch {
+    return "/fallback.jpg";
+  }
+};
+
   // DataGrid columns (desktop)
   const columns = [
     { field: 'name', headerName: 'Name', minWidth: 150, flex: 1 },
@@ -161,7 +201,7 @@ const CategoryTable = () => {
       renderCell: (params) => (
         params.value ? (
           <Image
-            src={params.value}
+            src={getSafeImageUrl(params.value)}
             alt="Category"
             width={50}
             height={50}

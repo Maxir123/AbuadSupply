@@ -19,6 +19,8 @@ import {
   useTheme,
   CircularProgress,
   Grid,
+  Card,
+  CardContent,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import { AiOutlineEye, AiOutlineSearch } from "react-icons/ai";
@@ -31,6 +33,55 @@ const formatNaira = (amount) => {
     currency: "NGN",
     minimumFractionDigits: 2,
   }).format(amount);
+};
+
+// Mobile Refund Card Component
+const MobileRefundCard = ({ order, onView }) => {
+  const getStatusColor = (status) => {
+    if (status === "refund_approved") return "success";
+    if (status === "refund_rejected") return "error";
+    return "warning";
+  };
+
+  const statusLabel = status
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (l) => l.toUpperCase());
+
+  return (
+    <Card
+      sx={{
+        mb: 2,
+        borderRadius: 2,
+        boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+        "&:hover": { boxShadow: "0 2px 6px rgba(0,0,0,0.1)" },
+      }}
+    >
+      <CardContent sx={{ p: 2 }}>
+        <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+          Order #{order.id.slice(-8)}
+        </Typography>
+        <Typography variant="body2" color="text.secondary" gutterBottom>
+          Customer: {order.customerName}
+        </Typography>
+        <Typography variant="body2" fontWeight="500" color="primary.main" gutterBottom>
+          Total: {formatNaira(order.total)}
+        </Typography>
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 1 }}>
+          <Chip
+            label={statusLabel}
+            size="small"
+            color={getStatusColor(order.status)}
+            variant="outlined"
+          />
+          <Tooltip title="View Details">
+            <IconButton size="small" color="primary" onClick={() => onView(order.id)}>
+              <AiOutlineEye size={18} />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      </CardContent>
+    </Card>
+  );
 };
 
 const AllRefundsPage = () => {
@@ -207,44 +258,67 @@ const AllRefundsPage = () => {
         />
       </Paper>
 
-      {/* Table Section */}
-      <Paper
-        elevation={0}
-        sx={{
-          borderRadius: 3,
-          overflow: "auto",
-          border: "1px solid",
-          borderColor: "grey.100",
-          bgcolor: "white",
-        }}
-      >
-        <Box sx={{ minWidth: isMobile ? "700px" : "100%" }}>
-          <DataGrid
-            rows={rows}
-            columns={columns}
-            pageSize={10}
-            rowsPerPageOptions={[10, 25, 50]}
-            autoHeight
-            disableSelectionOnClick
-            sx={{
-              border: "none",
-              "& .MuiDataGrid-columnHeaders": {
-                backgroundColor: "#fafafa",
-                borderBottom: "1px solid #e5e7eb",
-                fontSize: "0.875rem",
-                fontWeight: 600,
-              },
-              "& .MuiDataGrid-cell": {
-                borderBottom: "1px solid #f3f4f6",
-                py: 1.5,
-              },
-              "& .MuiDataGrid-row:hover": {
-                backgroundColor: "#f9fafb",
-              },
-            }}
-          />
+      {/* Content: DataGrid (desktop) or cards (mobile) */}
+      {isMobile ? (
+        <Box sx={{ display: "flex", flexDirection: "column" }}>
+          {filteredOrders.length === 0 ? (
+            <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", py: 4 }}>
+              No refund requests found.
+            </Typography>
+          ) : (
+            filteredOrders.map((order) => (
+              <MobileRefundCard
+                key={order._id}
+                order={{
+                  id: order._id,
+                  customerName: order.shippingAddress?.fullName || "N/A",
+                  total: order.totalPrice,
+                  status: order.status,
+                }}
+                onView={handleViewClick}
+              />
+            ))
+          )}
         </Box>
-      </Paper>
+      ) : (
+        <Paper
+          elevation={0}
+          sx={{
+            borderRadius: 3,
+            overflow: "auto",
+            border: "1px solid",
+            borderColor: "grey.100",
+            bgcolor: "white",
+          }}
+        >
+          <Box sx={{ minWidth: "100%" }}>
+            <DataGrid
+              rows={rows}
+              columns={columns}
+              pageSize={10}
+              rowsPerPageOptions={[10, 25, 50]}
+              autoHeight
+              disableSelectionOnClick
+              sx={{
+                border: "none",
+                "& .MuiDataGrid-columnHeaders": {
+                  backgroundColor: "#fafafa",
+                  borderBottom: "1px solid #e5e7eb",
+                  fontSize: "0.875rem",
+                  fontWeight: 600,
+                },
+                "& .MuiDataGrid-cell": {
+                  borderBottom: "1px solid #f3f4f6",
+                  py: 1.5,
+                },
+                "& .MuiDataGrid-row:hover": {
+                  backgroundColor: "#f9fafb",
+                },
+              }}
+            />
+          </Box>
+        </Paper>
+      )}
 
       {/* Refund Details Modal */}
       <Dialog

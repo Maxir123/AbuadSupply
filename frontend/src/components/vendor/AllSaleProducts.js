@@ -24,6 +24,9 @@ import {
   useTheme,
   TextField,
   InputAdornment,
+  Card,
+  CardContent,
+  Divider,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import { toast } from "react-toastify";
@@ -45,6 +48,57 @@ const formatNaira = (amount) => {
     currency: "NGN",
     minimumFractionDigits: 2,
   }).format(amount);
+};
+
+// Mobile Sale Card Component
+const MobileSaleCard = ({ sale, onEdit, onDelete, onView }) => {
+  return (
+    <Card
+      sx={{
+        mb: 2,
+        borderRadius: 2,
+        boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+        "&:hover": { boxShadow: "0 2px 6px rgba(0,0,0,0.1)" },
+      }}
+    >
+      <CardContent sx={{ p: 2 }}>
+        <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+          {sale.name}
+        </Typography>
+        <Typography variant="body2" color="text.secondary" gutterBottom>
+          Brand: {sale.brand}
+        </Typography>
+        <Typography variant="body2" fontWeight="500" color="primary.main" gutterBottom>
+          {formatNaira(sale.discountPrice)}
+        </Typography>
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 1 }}>
+          <Chip
+            label={`Stock: ${sale.stock}`}
+            size="small"
+            color={sale.stock > 10 ? "success" : sale.stock > 0 ? "warning" : "error"}
+            variant="outlined"
+          />
+          <Box sx={{ display: "flex", gap: 1 }}>
+            <Tooltip title="Edit">
+              <IconButton size="small" color="primary" onClick={() => onEdit(sale)}>
+                <AiOutlineEdit size={18} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Delete">
+              <IconButton size="small" color="error" onClick={() => onDelete(sale.id)}>
+                <AiOutlineDelete size={18} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="View">
+              <IconButton size="small" color="info" onClick={() => onView(sale.id)}>
+                <AiOutlineEye size={18} />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        </Box>
+      </CardContent>
+    </Card>
+  );
 };
 
 const AllSaleProducts = () => {
@@ -191,7 +245,7 @@ const AllSaleProducts = () => {
 
   const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
-  // DataGrid columns
+  // DataGrid columns (desktop)
   const columns = [
     {
       field: "id",
@@ -401,44 +455,70 @@ const AllSaleProducts = () => {
         />
       </Paper>
 
-      {/* Table */}
-      <Paper
-        elevation={0}
-        sx={{
-          borderRadius: 3,
-          overflow: "auto",
-          border: "1px solid",
-          borderColor: "grey.100",
-          bgcolor: "white",
-        }}
-      >
-        <Box sx={{ minWidth: isMobile ? "800px" : "100%" }}>
-          <DataGrid
-            rows={rows}
-            columns={columns}
-            pageSize={10}
-            rowsPerPageOptions={[10, 25, 50]}
-            autoHeight
-            disableSelectionOnClick
-            sx={{
-              border: "none",
-              "& .MuiDataGrid-columnHeaders": {
-                backgroundColor: "#fafafa",
-                borderBottom: "1px solid #e5e7eb",
-                fontSize: "0.875rem",
-                fontWeight: 600,
-              },
-              "& .MuiDataGrid-cell": {
-                borderBottom: "1px solid #f3f4f6",
-                py: 1.5,
-              },
-              "& .MuiDataGrid-row:hover": {
-                backgroundColor: "#f9fafb",
-              },
-            }}
-          />
+      {/* Content: DataGrid (desktop) or cards (mobile) */}
+      {isMobile ? (
+        <Box sx={{ display: "flex", flexDirection: "column" }}>
+          {filteredSales.length === 0 ? (
+            <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", py: 4 }}>
+              No sale products found.
+            </Typography>
+          ) : (
+            filteredSales.map((sale) => (
+              <MobileSaleCard
+                key={sale._id}
+                sale={{
+                  id: sale._id,
+                  name: sale.name,
+                  brand: sale.brand,
+                  discountPrice: sale.discountPrice,
+                  stock: sale.stock,
+                }}
+                onEdit={handleSaleEdit}
+                onDelete={openDeleteModalHandler}
+                onView={handleViewSale}
+              />
+            ))
+          )}
         </Box>
-      </Paper>
+      ) : (
+        <Paper
+          elevation={0}
+          sx={{
+            borderRadius: 3,
+            overflow: "auto",
+            border: "1px solid",
+            borderColor: "grey.100",
+            bgcolor: "white",
+          }}
+        >
+          <Box sx={{ minWidth: "100%" }}>
+            <DataGrid
+              rows={rows}
+              columns={columns}
+              pageSize={10}
+              rowsPerPageOptions={[10, 25, 50]}
+              autoHeight
+              disableSelectionOnClick
+              sx={{
+                border: "none",
+                "& .MuiDataGrid-columnHeaders": {
+                  backgroundColor: "#fafafa",
+                  borderBottom: "1px solid #e5e7eb",
+                  fontSize: "0.875rem",
+                  fontWeight: 600,
+                },
+                "& .MuiDataGrid-cell": {
+                  borderBottom: "1px solid #f3f4f6",
+                  py: 1.5,
+                },
+                "& .MuiDataGrid-row:hover": {
+                  backgroundColor: "#f9fafb",
+                },
+              }}
+            />
+          </Box>
+        </Paper>
+      )}
 
       {/* Edit Product Modal */}
       <EditProductModal

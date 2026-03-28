@@ -25,6 +25,8 @@ import {
   Paper,
   useMediaQuery,
   useTheme,
+  Card,
+  CardContent,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import { toast } from "react-toastify";
@@ -32,6 +34,76 @@ import { toast } from "react-toastify";
 // Local imports
 import { updateOrderStatus, fetchVendorOrders, fetchSingleOrder, deleteOrder } from "../../redux/slices/orderSlice";
 import Loader from "./layout/Loader";
+
+// Nigerian Naira formatter (optional, use if needed)
+const formatNaira = (amount) => {
+  return new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    minimumFractionDigits: 2,
+  }).format(amount);
+};
+
+// Mobile Order Card
+const MobileOrderCard = ({ order, onStatusChange, onDelete, onView }) => {
+  const statusOptions = [
+    "processing",
+    "shipped",
+    "delivered",
+    "cancelled",
+    "Processing refund",
+    "refund_approved",
+    "refund_rejected",
+  ];
+
+  const handleStatusChange = (e) => {
+    onStatusChange(order.id, e.target.value);
+  };
+
+  return (
+    <Card
+      sx={{
+        mb: 2,
+        borderRadius: 2,
+        boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+        "&:hover": { boxShadow: "0 2px 6px rgba(0,0,0,0.1)" },
+      }}
+    >
+      <CardContent sx={{ p: 2 }}>
+        <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+          Order #{order.id.slice(-8)}
+        </Typography>
+        <Typography variant="body2" color="text.secondary" gutterBottom>
+          Customer: {order.customerName}
+        </Typography>
+        <Typography variant="body2" fontWeight="500" color="primary.main" gutterBottom>
+          Total: ${order.totalAmount}
+        </Typography>
+        <FormControl fullWidth size="small" sx={{ mt: 1 }}>
+          <Select value={order.status} onChange={handleStatusChange} sx={{ fontSize: "0.875rem" }}>
+            {statusOptions.map((opt) => (
+              <MenuItem key={opt} value={opt}>
+                {opt}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <Box sx={{ display: "flex", gap: 1, justifyContent: "flex-end", mt: 2 }}>
+          <Tooltip title="View Details">
+            <IconButton size="small" color="primary" onClick={() => onView(order.id)}>
+              <AiOutlineEye size={18} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Delete Order">
+            <IconButton size="small" color="error" onClick={() => onDelete(order.id)}>
+              <AiOutlineDelete size={18} />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      </CardContent>
+    </Card>
+  );
+};
 
 const AllOrdersTable = () => {
   const theme = useTheme();
@@ -127,7 +199,7 @@ const AllOrdersTable = () => {
     setOpenModal(false);
   };
 
-  // Columns for DataGrid
+  // Columns for DataGrid (desktop)
   const columns = [
     { field: "id", headerName: "Order ID", minWidth: 180, flex: 1 },
     { field: "customerName", headerName: "Customer Name", minWidth: 200, flex: 1.4 },
@@ -147,35 +219,24 @@ const AllOrdersTable = () => {
       headerName: "Status",
       minWidth: 180,
       flex: 1,
-      renderCell: ({ row }) => {
-        const statusColors = {
-          processing: "warning",
-          shipped: "info",
-          delivered: "success",
-          cancelled: "error",
-          "Processing refund": "warning",
-          refund_approved: "success",
-          refund_rejected: "error",
-        };
-        return (
-          <FormControl size="small" fullWidth>
-            <Select
-              value={row.status}
-              onChange={(e) => handleStatusChange(row.id, e.target.value)}
-              variant="outlined"
-              sx={{ fontSize: "0.875rem" }}
-            >
-              <MenuItem value="processing">Processing</MenuItem>
-              <MenuItem value="shipped">Shipped</MenuItem>
-              <MenuItem value="delivered">Delivered</MenuItem>
-              <MenuItem value="cancelled">Cancelled</MenuItem>
-              <MenuItem value="Processing refund">Processing refund</MenuItem>
-              <MenuItem value="refund_approved">Refund Approved</MenuItem>
-              <MenuItem value="refund_rejected">Refund Rejected</MenuItem>
-            </Select>
-          </FormControl>
-        );
-      },
+      renderCell: ({ row }) => (
+        <FormControl size="small" fullWidth>
+          <Select
+            value={row.status}
+            onChange={(e) => handleStatusChange(row.id, e.target.value)}
+            variant="outlined"
+            sx={{ fontSize: "0.875rem" }}
+          >
+            <MenuItem value="processing">Processing</MenuItem>
+            <MenuItem value="shipped">Shipped</MenuItem>
+            <MenuItem value="delivered">Delivered</MenuItem>
+            <MenuItem value="cancelled">Cancelled</MenuItem>
+            <MenuItem value="Processing refund">Processing refund</MenuItem>
+            <MenuItem value="refund_approved">Refund Approved</MenuItem>
+            <MenuItem value="refund_rejected">Refund Rejected</MenuItem>
+          </Select>
+        </FormControl>
+      ),
     },
     {
       field: "actions",
@@ -297,45 +358,70 @@ const AllOrdersTable = () => {
           />
         </Paper>
 
-        {/* Orders Table */}
-        <Paper
-          elevation={0}
-          sx={{
-            borderRadius: 3,
-            overflow: "auto",
-            border: "1px solid",
-            borderColor: "grey.100",
-            bgcolor: "white",
-            width: "100%",
-          }}
-        >
-          <Box sx={{ minWidth: isMobile ? "600px" : "100%" }}>
-            <DataGrid
-              rows={rows}
-              columns={columns}
-              pageSize={10}
-              rowsPerPageOptions={[10, 25, 50]}
-              autoHeight
-              disableSelectionOnClick
-              sx={{
-                border: "none",
-                "& .MuiDataGrid-columnHeaders": {
-                  backgroundColor: "#fafafa",
-                  borderBottom: "1px solid #e5e7eb",
-                  fontSize: "0.875rem",
-                  fontWeight: 600,
-                },
-                "& .MuiDataGrid-cell": {
-                  borderBottom: "1px solid #f3f4f6",
-                  py: 1.5,
-                },
-                "& .MuiDataGrid-row:hover": {
-                  backgroundColor: "#f9fafb",
-                },
-              }}
-            />
+        {/* Content: DataGrid (desktop) or cards (mobile) */}
+        {isMobile ? (
+          <Box sx={{ display: "flex", flexDirection: "column" }}>
+            {filteredOrders.length === 0 ? (
+              <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", py: 4 }}>
+                No orders found.
+              </Typography>
+            ) : (
+              filteredOrders.map((order) => (
+                <MobileOrderCard
+                  key={order._id}
+                  order={{
+                    id: order._id,
+                    customerName: order.shippingAddress?.fullName || "N/A",
+                    totalAmount: order.totalPrice,
+                    status: order.status,
+                  }}
+                  onStatusChange={handleStatusChange}
+                  onDelete={handleDeleteConfirmation}
+                  onView={handlePreviewClick}
+                />
+              ))
+            )}
           </Box>
-        </Paper>
+        ) : (
+          <Paper
+            elevation={0}
+            sx={{
+              borderRadius: 3,
+              overflow: "auto",
+              border: "1px solid",
+              borderColor: "grey.100",
+              bgcolor: "white",
+              width: "100%",
+            }}
+          >
+            <Box sx={{ minWidth: "100%" }}>
+              <DataGrid
+                rows={rows}
+                columns={columns}
+                pageSize={10}
+                rowsPerPageOptions={[10, 25, 50]}
+                autoHeight
+                disableSelectionOnClick
+                sx={{
+                  border: "none",
+                  "& .MuiDataGrid-columnHeaders": {
+                    backgroundColor: "#fafafa",
+                    borderBottom: "1px solid #e5e7eb",
+                    fontSize: "0.875rem",
+                    fontWeight: 600,
+                  },
+                  "& .MuiDataGrid-cell": {
+                    borderBottom: "1px solid #f3f4f6",
+                    py: 1.5,
+                  },
+                  "& .MuiDataGrid-row:hover": {
+                    backgroundColor: "#f9fafb",
+                  },
+                }}
+              />
+            </Box>
+          </Paper>
+        )}
       </Box>
 
       {/* Order Details Modal */}

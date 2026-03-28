@@ -137,7 +137,9 @@ const DashboardHeader = () => {
             key={path}
             href={path}
             className={`p-2 rounded-md transition-colors duration-200 hover:bg-gray-100 ${
-              isActive(path) ? "text-crimson" : "text-gray-600"
+              isActive(path)
+                ? "border-b-2 border-blue-500 text-gray-600"
+                : "text-gray-600"
             }`}
             aria-label={path.split("/").pop()}
           >
@@ -264,7 +266,7 @@ const DashboardHeader = () => {
                   onClick={() => setMobileMenuOpen(false)}
                   className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
                     isActive(path)
-                      ? "bg-crimson text-white"
+                      ? "border-l-4 border-blue-500 text-gray-600 bg-gray-50"
                       : "text-gray-700 hover:bg-gray-100"
                   }`}
                 >

@@ -35,7 +35,7 @@ const ViewProductModal = ({
                 <Typography variant="h6">Product Name: {singleProduct.name}</Typography>
                 <Divider style={{ margin: "10px 0" }} />
                 <Typography variant="body2" color="textSecondary">
-                  <strong>Brand:</strong> {singleProduct.brand}
+                  <strong>Brand:</strong> {singleProduct.brand?.name || "No brand"}
                 </Typography>
                 <Typography variant="body2" color="textSecondary">
                   <strong>Main Category:</strong> {singleProduct.mainCategory}

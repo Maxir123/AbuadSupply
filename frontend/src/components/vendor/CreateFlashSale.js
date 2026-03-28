@@ -28,8 +28,19 @@ import {
   InputLabel,
   FormControl,
   Divider,
+  InputAdornment,
 } from "@mui/material";
-import { AiOutlinePlus, AiOutlineDelete, AiOutlineUpload } from "react-icons/ai";
+import {
+  AiOutlinePlus,
+  AiOutlineDelete,
+  AiOutlineUpload,
+  AiOutlineTag,
+  AiOutlineShoppingCart,
+  AiOutlineDollar,
+  AiOutlineCalendar,
+  AiOutlinePicture,
+  AiOutlineStar,
+} from "react-icons/ai";
 
 // Local imports
 import { createSale } from "@/redux/slices/saleSlice";
@@ -58,6 +69,16 @@ const formatNaira = (amount) => {
     minimumFractionDigits: 2,
   }).format(amount);
 };
+
+// Helper: Section header with icon
+const SectionHeader = ({ icon: Icon, title }) => (
+  <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+    <Icon size={20} color="#1976d2" />
+    <Typography variant="h6" fontWeight="bold">
+      {title}
+    </Typography>
+  </Box>
+);
 
 const CreateFlashSale = () => {
   const theme = useTheme();
@@ -174,7 +195,6 @@ const CreateFlashSale = () => {
     if (!productData.name.trim()) newErrors.name = "Product name is required";
     if (!productData.mainCategory) newErrors.mainCategory = "Category is required";
     if (!productData.subCategory) newErrors.subCategory = "Subcategory is required";
-    if (!productData.brand) newErrors.brand = "Brand is required";
     if (!productData.originalPrice) newErrors.originalPrice = "Original price is required";
     if (!productData.stock) newErrors.stock = "Stock is required";
     if (!productData.startDate) newErrors.startDate = "Start date is required";
@@ -276,9 +296,7 @@ const CreateFlashSale = () => {
           {/* Product Information Section */}
           <Grid item xs={12}>
             <Paper elevation={0} sx={{ p: 3, borderRadius: 3, bgcolor: "white", border: "1px solid", borderColor: "grey.100" }}>
-              <Typography variant="h6" fontWeight="bold" gutterBottom>
-                Product Information
-              </Typography>
+              <SectionHeader icon={AiOutlineTag} title="Product Information" />
               <Divider sx={{ mb: 3 }} />
 
               <TextField
@@ -308,9 +326,7 @@ const CreateFlashSale = () => {
           {/* Category & Brand Section */}
           <Grid item xs={12}>
             <Paper elevation={0} sx={{ p: 3, borderRadius: 3, bgcolor: "white", border: "1px solid", borderColor: "grey.100" }}>
-              <Typography variant="h6" fontWeight="bold" gutterBottom>
-                Category & Brand
-              </Typography>
+              <SectionHeader icon={AiOutlineShoppingCart} title="Category & Brand" />
               <Divider sx={{ mb: 3 }} />
 
               <Grid container spacing={2}>
@@ -418,9 +434,7 @@ const CreateFlashSale = () => {
           {/* Price & Stock Section */}
           <Grid item xs={12}>
             <Paper elevation={0} sx={{ p: 3, borderRadius: 3, bgcolor: "white", border: "1px solid", borderColor: "grey.100" }}>
-              <Typography variant="h6" fontWeight="bold" gutterBottom>
-                Pricing & Stock
-              </Typography>
+              <SectionHeader icon={AiOutlineDollar} title="Pricing & Stock" />
               <Divider sx={{ mb: 3 }} />
 
               <Grid container spacing={2}>
@@ -435,7 +449,7 @@ const CreateFlashSale = () => {
                     error={!!errors.originalPrice}
                     helperText={errors.originalPrice}
                     required
-                    InputProps={{ startAdornment: <span>₦</span> }}
+                    InputProps={{ startAdornment: <InputAdornment position="start">₦</InputAdornment> }}
                   />
                 </Grid>
                 <Grid item xs={12} sm={4}>
@@ -448,7 +462,7 @@ const CreateFlashSale = () => {
                     onChange={handleInputChange}
                     error={!!errors.discountPrice}
                     helperText={errors.discountPrice}
-                    InputProps={{ startAdornment: <span>₦</span> }}
+                    InputProps={{ startAdornment: <InputAdornment position="start">₦</InputAdornment> }}
                   />
                 </Grid>
                 <Grid item xs={12} sm={4}>
@@ -471,9 +485,7 @@ const CreateFlashSale = () => {
           {/* Sale Dates Section */}
           <Grid item xs={12}>
             <Paper elevation={0} sx={{ p: 3, borderRadius: 3, bgcolor: "white", border: "1px solid", borderColor: "grey.100" }}>
-              <Typography variant="h6" fontWeight="bold" gutterBottom>
-                Sale Period
-              </Typography>
+              <SectionHeader icon={AiOutlineCalendar} title="Sale Period" />
               <Divider sx={{ mb: 3 }} />
 
               <Grid container spacing={2}>
@@ -518,9 +530,7 @@ const CreateFlashSale = () => {
           {categoryAttributes[productData.mainCategory]?.length > 0 && (
             <Grid item xs={12}>
               <Paper elevation={0} sx={{ p: 3, borderRadius: 3, bgcolor: "white", border: "1px solid", borderColor: "grey.100" }}>
-                <Typography variant="h6" fontWeight="bold" gutterBottom>
-                  Product Attributes
-                </Typography>
+                <SectionHeader icon={AiOutlineTag} title="Product Attributes" />
                 <Divider sx={{ mb: 3 }} />
                 <Grid container spacing={2}>
                   {categoryAttributes[productData.mainCategory].map((attr) => (
@@ -542,9 +552,7 @@ const CreateFlashSale = () => {
           {/* Images Section */}
           <Grid item xs={12}>
             <Paper elevation={0} sx={{ p: 3, borderRadius: 3, bgcolor: "white", border: "1px solid", borderColor: "grey.100" }}>
-              <Typography variant="h6" fontWeight="bold" gutterBottom>
-                Product Images
-              </Typography>
+              <SectionHeader icon={AiOutlinePicture} title="Product Images" />
               <Divider sx={{ mb: 3 }} />
 
               <Box
@@ -576,19 +584,18 @@ const CreateFlashSale = () => {
                   </Typography>
                 )}
                 <Typography variant="caption" color="text.secondary" display="block">
-                  You can select multiple images
+                  You can select multiple images (JPEG, PNG, WEBP)
                 </Typography>
               </Box>
 
               {images.length > 0 && (
-                <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+                <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: 2 }}>
                   {images.map((img, idx) => (
-                    <Box key={idx} sx={{ position: "relative" }}>
+                    <Box key={idx} sx={{ position: "relative", aspectRatio: "1/1" }}>
                       <Image
                         src={img}
                         alt={`Preview ${idx}`}
-                        width={100}
-                        height={100}
+                        fill
                         style={{ objectFit: "cover", borderRadius: 8 }}
                         unoptimized
                       />
@@ -609,6 +616,8 @@ const CreateFlashSale = () => {
           {/* Featured Product Switch */}
           <Grid item xs={12}>
             <Paper elevation={0} sx={{ p: 3, borderRadius: 3, bgcolor: "white", border: "1px solid", borderColor: "grey.100" }}>
+              <SectionHeader icon={AiOutlineStar} title="Featured" />
+              <Divider sx={{ mb: 3 }} />
               <FormControlLabel
                 control={
                   <Switch
@@ -627,24 +636,26 @@ const CreateFlashSale = () => {
 
           {/* Submit Button */}
           <Grid item xs={12}>
-            <Button
-              type="submit"
-              variant="contained"
-              size="large"
-              disabled={loading}
-              startIcon={loading ? <CircularProgress size={20} /> : <AiOutlinePlus />}
-              sx={{
-                py: 1.5,
-                borderRadius: 2,
-                textTransform: "none",
-                fontSize: "1rem",
-                fontWeight: 600,
-                width: "100%",
-                maxWidth: isMobile ? "100%" : "300px",
-              }}
-            >
-              {loading ? "Creating..." : "Create Sale Product"}
-            </Button>
+            <Box sx={{ display: "flex", justifyContent: "center" }}>
+              <Button
+                type="submit"
+                variant="contained"
+                size="large"
+                disabled={loading}
+                startIcon={loading ? <CircularProgress size={20} /> : <AiOutlinePlus />}
+                sx={{
+                  py: 1.5,
+                  px: 4,
+                  borderRadius: 2,
+                  textTransform: "none",
+                  fontSize: "1rem",
+                  fontWeight: 600,
+                  width: { xs: "100%", sm: "auto" },
+                }}
+              >
+                {loading ? "Creating..." : "Create Sale Product"}
+              </Button>
+            </Box>
           </Grid>
         </Grid>
       </form>

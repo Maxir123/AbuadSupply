@@ -60,7 +60,7 @@ const MobileProductCard = ({ product, onEdit, onDelete, onView }) => {
           {product.name}
         </Typography>
         <Typography variant="body2" color="text.secondary" gutterBottom>
-          Brand: {product.brand}
+          Brand: {product.brand?.name || "No brand"}
         </Typography>
         <Typography variant="body2" fontWeight="500" color="primary.main" gutterBottom>
           {formatNaira(price)}
@@ -224,7 +224,7 @@ const AllProductsTable = () => {
       originalPrice: product.originalPrice,
       discountPrice: product.discountPrice || "",
       stock: product.stock,
-      brand: product.brand,
+      brand: product.brand?.name || "No brand",
       mainCategory: product.mainCategory,
       subCategory: product.subCategory,
       subSubCategory: product.subSubCategory,
@@ -232,7 +232,7 @@ const AllProductsTable = () => {
     setMainCategory(product.mainCategory);
     setSubCategory(product.subCategory);
     setSubSubCategory(product.subSubCategory);
-    setSelectedBrand(product.brand);
+    setSelectedBrand(product.brand?.name || "No brand");
     setOpenEditModal(true);
   };
 
@@ -485,7 +485,7 @@ const AllProductsTable = () => {
                 product={{
                   id: product._id,
                   name: product.name,
-                  brand: product.brand,
+                  brand: product.brand?.name || "No brand",
                   originalPrice: product.originalPrice,
                   discountPrice: product.discountPrice,
                   stock: product.stock,

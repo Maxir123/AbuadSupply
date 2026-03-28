@@ -58,7 +58,7 @@ const VendorProfile = ({ vendor, vendorProducts, brands, categories }) => {
     }
     if (selectedBrand) {
       console.log("Selected Brand:", selectedBrand);
-      filtered = filtered.filter((product) => product.brand === selectedBrand);
+      filtered = filtered.filter((product) => product.brand?.name || "No brand" === selectedBrand);
     }
     if (searchQuery) {
       const lowerCaseQuery = searchQuery.toLowerCase();

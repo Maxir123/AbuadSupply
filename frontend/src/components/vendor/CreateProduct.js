@@ -1,6 +1,6 @@
 // Third-party library imports
 import "quill/dist/quill.snow.css";
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useDispatch, useSelector } from "react-redux";
 import { useRouter } from "next/router";
@@ -26,6 +26,7 @@ import {
   Grid,
   Chip,
   IconButton,
+  Tooltip,
   useMediaQuery,
   useTheme,
   CircularProgress,
@@ -45,7 +46,7 @@ import { fetchCategories } from "@/redux/slices/categorySlice";
 import { fetchAllBrands } from "@/redux/slices/brandSlice";
 import RichTextEditor from "../common/RichTextEditor";
 
-// Category-specific attributes (unchanged)
+// Category-specific attributes
 const categoryAttributes = {
   clothing: ["size", "color", "material", "gender"],
   vehicles: ["model", "make", "year", "mileage", "fuelType"],
@@ -58,7 +59,7 @@ const categoryAttributes = {
   jobs: ["jobType", "location", "salary", "experienceLevel", "industry"],
 };
 
-// Section header component (unchanged)
+// Section header component
 const SectionHeader = ({ icon: Icon, title }) => (
   <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
     <Icon size={20} color="#1976d2" />
@@ -75,11 +76,10 @@ const CreateProduct = () => {
   const router = useRouter();
   const { vendorInfo } = useSelector((state) => state.vendors);
   const { categories } = useSelector((state) => state.categories);
-  const { brands } = useSelector((state) => state.brands); // still used for potential other things
+  const { brands } = useSelector((state) => state.brands);
 
-  // State: images preview URLs and actual File objects
-  const [imagePreviews, setImagePreviews] = useState([]);
-  const [imageFiles, setImageFiles] = useState([]);
+  const [imageFiles, setImageFiles] = useState([]); // Store actual File objects
+  const [imagePreviews, setImagePreviews] = useState([]); // For preview only
   const [loading, setLoading] = useState(false);
   const [productData, setProductData] = useState({
     name: "",
@@ -97,7 +97,7 @@ const CreateProduct = () => {
 
   const [errors, setErrors] = useState({});
 
-  // Derived data (unchanged)
+  // Derived data
   const subcategories = useMemo(() => {
     if (!productData.mainCategory) return [];
     const main = categories?.find((c) => c.slug === productData.mainCategory);
@@ -110,18 +110,11 @@ const CreateProduct = () => {
     return sub?.subsubcategories || [];
   }, [subcategories, productData.subCategory]);
 
-  // Fetch initial data (unchanged)
+  // Fetch initial data
   useEffect(() => {
     dispatch(fetchCategories());
     dispatch(fetchAllBrands());
   }, [dispatch]);
-
-  // Clean up preview URLs when component unmounts
-  useEffect(() => {
-    return () => {
-      imagePreviews.forEach((url) => URL.revokeObjectURL(url));
-    };
-  }, [imagePreviews]);
 
   const handleCategoryChange = (e) => {
     const { value } = e.target;
@@ -155,18 +148,29 @@ const CreateProduct = () => {
 
   const handleImageChange = (e) => {
     const files = Array.from(e.target.files || []);
-    // Create preview URLs and store files
-    const newPreviews = files.map((file) => URL.createObjectURL(file));
-    setImagePreviews((prev) => [...prev, ...newPreviews]);
+    if (files.length + imageFiles.length > 10) {
+      toast.error("You can upload up to 10 images");
+      return;
+    }
+
+    // Store actual file objects for submission
     setImageFiles((prev) => [...prev, ...files]);
+
+    // Create preview URLs
+    files.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setImagePreviews((prev) => [...prev, reader.result]);
+      };
+      reader.readAsDataURL(file);
+    });
+
     if (errors.images) setErrors((prev) => ({ ...prev, images: "" }));
   };
 
   const removeImage = (index) => {
-    // Revoke the object URL to avoid memory leaks
-    URL.revokeObjectURL(imagePreviews[index]);
-    setImagePreviews((prev) => prev.filter((_, i) => i !== index));
     setImageFiles((prev) => prev.filter((_, i) => i !== index));
+    setImagePreviews((prev) => prev.filter((_, i) => i !== index));
     if (errors.images) setErrors((prev) => ({ ...prev, images: "" }));
   };
 
@@ -179,7 +183,7 @@ const CreateProduct = () => {
     if (!productData.name.trim()) newErrors.name = "Product name is required";
     if (!productData.mainCategory) newErrors.mainCategory = "Main category is required";
     if (!productData.subCategory) newErrors.subCategory = "Subcategory is required";
-    // Brand is optional, no validation
+    if (!productData.brand) newErrors.brand = "Brand is required";
     if (!productData.originalPrice) newErrors.originalPrice = "Original price is required";
     if (!productData.stock) newErrors.stock = "Stock is required";
     if (imageFiles.length === 0) newErrors.images = "At least one image is required";
@@ -195,56 +199,31 @@ const CreateProduct = () => {
     if (!validateForm()) return;
 
     setLoading(true);
-    const form = new FormData();
+    const formData = new FormData();
 
-    // Required fields (excluding brand, which is optional)
-    const requiredFields = [
-      "name",
-      "description",
-      "mainCategory",
-      "subCategory",
-      "originalPrice",
-      "discountPrice",
-      "stock",
-      "isFeatured",
-    ];
-    requiredFields.forEach((field) => {
-      form.append(field, productData[field]);
-    });
+    // Basic fields
+    formData.append("name", productData.name);
+    formData.append("description", productData.description);
+    formData.append("mainCategory", productData.mainCategory);
+    formData.append("subCategory", productData.subCategory);
+    formData.append("subSubCategory", productData.subSubCategory);
+    formData.append("brand", productData.brand);
+    formData.append("originalPrice", productData.originalPrice);
+    formData.append("discountPrice", productData.discountPrice || "");
+    formData.append("stock", productData.stock);
+    formData.append("isFeatured", productData.isFeatured);
+    formData.append("vendorId", vendorInfo?._id || "");
 
-    // Optional sub-subcategory
-    if (productData.subSubCategory) {
-      form.append("subSubCategory", productData.subSubCategory);
-    }
+    // Attributes as JSON string
+    formData.append("attributes", JSON.stringify(productData.attributes));
 
-    // Brand: only if non-empty
-    if (productData.brand?.trim()) {
-      form.append("brand", productData.brand.trim());
-    }
-
-    // Vendor ID
-    if (vendorInfo?._id) {
-      form.append("vendorId", vendorInfo._id);
-    } else {
-      toast.error("Vendor information missing. Please log in again.");
-      setLoading(false);
-      return;
-    }
-
-    // Attributes: only add if value is truthy
-    Object.entries(productData.attributes || {}).forEach(([key, value]) => {
-      if (value) {
-        form.append(`attributes[${key}]`, value);
-      }
-    });
-
-    // Images: actual File objects
+    // Append image files (raw File objects)
     imageFiles.forEach((file) => {
-      form.append("images", file);
+      formData.append("images", file);
     });
 
     try {
-      const result = await dispatch(createProduct(form));
+      const result = await dispatch(createProduct(formData));
       if (result.type === "products/createProduct/fulfilled") {
         toast.success("Product created successfully!");
         router.push("/vendor/dashboard");
@@ -252,8 +231,7 @@ const CreateProduct = () => {
         const msg = result.payload?.message || "An error occurred while creating the product.";
         toast.error(msg);
       }
-    } catch (err) {
-      console.error("Product creation error:", err);
+    } catch {
       toast.error("An unexpected error occurred.");
     } finally {
       setLoading(false);
@@ -403,14 +381,25 @@ const CreateProduct = () => {
                 </Grid>
 
                 <Grid item xs={12} sm={6} md={3}>
-                  <TextField
-                    fullWidth
-                    label="Brand (optional)"
-                    name="brand"
-                    value={productData.brand}
-                    onChange={handleInputChange}
-                    placeholder="e.g., Nike, Apple, etc."
-                  />
+                  <FormControl fullWidth error={!!errors.brand}>
+                    <InputLabel>Brand</InputLabel>
+                    <Select
+                      value={productData.brand}
+                      onChange={(e) => setProductData((prev) => ({ ...prev, brand: e.target.value }))}
+                      label="Brand"
+                      required
+                    >
+                      <MenuItem value="">Choose a brand</MenuItem>
+                      {brands?.map((brand) => (
+                        <MenuItem key={brand.name} value={brand.name}>
+                          {brand.name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                    {errors.brand && (
+                      <Typography variant="caption" color="error">{errors.brand}</Typography>
+                    )}
+                  </FormControl>
                 </Grid>
               </Grid>
             </Paper>
@@ -525,7 +514,7 @@ const CreateProduct = () => {
                   </Typography>
                 )}
                 <Typography variant="caption" color="text.secondary" display="block">
-                  You can select multiple images (JPEG, PNG, WEBP)
+                  You can select multiple images (JPEG, PNG, WEBP) – max 10 images
                 </Typography>
               </Box>
 

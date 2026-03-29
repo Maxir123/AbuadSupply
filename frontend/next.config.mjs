@@ -8,6 +8,7 @@ const nextConfig = {
     remotePatterns: [
       { protocol: "https", hostname: "res.cloudinary.com", pathname: "/**" },
       { protocol: "https", hostname: "lh3.googleusercontent.com", pathname: "/**" },
+      { protocol: "https", hostname: "images.unsplash.com", pathname: "/**" }, // ✅ keep this
     ],
     minimumCacheTTL: 60,
   },
@@ -21,4 +22,5 @@ const nextConfig = {
   },
   compress: true,
 };
+
 export default nextConfig;

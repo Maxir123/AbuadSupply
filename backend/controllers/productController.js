@@ -37,59 +37,30 @@ const uploadImages = async (files) => {
   if (!files?.length) throw new Error("No image files provided");
 
   const imagesLinks = [];
-  const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
-
+  
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
-    if (!allowedMimeTypes.includes(file.mimetype)) {
-      throw new Error(`Unsupported format: ${file.mimetype}`);
-    }
+    
+    // Create a unique filename
+    const filename = `product-${Date.now()}-${Math.round(Math.random() * 1E9)}.jpg`;
+    const fullPath = path.join(uploadsDir, filename);
 
     try {
-      // Optimize to a smaller buffer
-      const processedBuffer = await sharp(file.buffer || file.path)
+      // Process and save locally
+      await sharp(file.buffer || file.path)
         .resize(1024, 1024, { fit: 'inside', withoutEnlargement: true })
-        .jpeg({ quality: 60, progressive: true })
-        .toBuffer();
+        .jpeg({ quality: 80 })
+        .toFile(fullPath);
 
-      // Upload with retry (max 3 attempts)
-      let result;
-      let lastError;
-      for (let attempt = 1; attempt <= 3; attempt++) {
-        try {
-result = await new Promise((resolve, reject) => {
-  const uploadStream = cloudinary.uploader.upload_stream(
-    { 
-      folder: "products", 
-      format: "jpg",
-      timeout: 60000 // 60 seconds is usually plenty for a processed buffer
-    },
-    (err, res) => {
-      if (err) return reject(err);
-      resolve(res);
-    }
-  );
-
-  // End the stream and send the buffer
-  uploadStream.end(processedBuffer); 
-});
-          break; // success
-        } catch (err) {
-          lastError = err;
-          console.log(`Upload attempt ${attempt} failed: ${err.message}`);
-          if (attempt < 3) await new Promise(r => setTimeout(r, 3000 * attempt));
-        }
-      }
-
-      if (!result) throw lastError || new Error("All upload attempts failed");
-
-      imagesLinks.push({ public_id: result.public_id, url: result.secure_url });
+      // Store the relative URL so the frontend can access it
+      // public_id is just a placeholder here to keep your database schema consistent
+      imagesLinks.push({ 
+        public_id: filename, 
+        url: `/uploads/${filename}` 
+      });
     } catch (err) {
-      console.error(`Failed to upload image ${i}:`, err);
-      // Optional fallback to local storage
-      const fallbackPath = path.join(uploadsDir, `fallback-${Date.now()}-${i}.jpg`);
-      fs.writeFileSync(fallbackPath, await sharp(file.buffer || file.path).jpeg({ quality: 80 }).toBuffer());
-      imagesLinks.push({ public_id: `local/${path.basename(fallbackPath)}`, url: `/uploads/${path.basename(fallbackPath)}` });
+      console.error(`Failed to save image ${i} locally:`, err);
+      throw new Error("Local image save failed");
     }
   }
   return imagesLinks;

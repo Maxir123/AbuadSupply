@@ -1,10 +1,10 @@
 // Third-party library imports
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import Snackbar from '@mui/material/Snackbar';
 import Alert from '@mui/material/Alert';
 import CircularProgress from '@mui/material/CircularProgress';
-import { Button } from '@mui/material';
+import { Button, Chip, Card, CardContent, Typography, Box, useMediaQuery, useTheme } from '@mui/material';
 import { format } from 'date-fns';
 import Link from 'next/link';
 
@@ -13,11 +13,33 @@ import { getUserAllOrders } from '@/redux/slices/orderSlice';
 import { setOrderItems } from '@/redux/slices/checkoutSlice';
 import ProductTable from '../common/ProductTable';
 
+// Format Nigerian Naira
+const formatNaira = (amount) => {
+  return new Intl.NumberFormat('en-NG', {
+    style: 'currency',
+    currency: 'NGN',
+    minimumFractionDigits: 2,
+  }).format(amount || 0);
+};
+
+// Status chip colors
+const statusConfig = {
+  processing: { label: 'Processing', color: 'warning' },
+  shipped: { label: 'Shipped', color: 'info' },
+  delivered: { label: 'Delivered', color: 'success' },
+  cancelled: { label: 'Cancelled', color: 'error' },
+  'processing refund': { label: 'Processing refund', color: 'warning' },
+  refund_approved: { label: 'Refund Approved', color: 'success' },
+  refund_rejected: { label: 'Refund Rejected', color: 'error' },
+};
+
 const AllOrders = () => {
   const { userInfo } = useSelector((state) => state.user);
   const { orders, isLoading, error } = useSelector((state) => state.orders);
-  const [openSnackbar, setOpenSnackbar] = React.useState(false);
+  const [openSnackbar, setOpenSnackbar] = useState(false);
   const dispatch = useDispatch();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   useEffect(() => {
     if (userInfo && userInfo._id && !isLoading) {
@@ -26,7 +48,16 @@ const AllOrders = () => {
     }
   }, [dispatch, userInfo?._id]);
 
-  const mockOrders = orders.length === 0 ? [] : orders;
+  const handleCloseSnackbar = () => {
+    setOpenSnackbar(false);
+  };
+
+  // Handle errors
+  useEffect(() => {
+    if (error) {
+      setOpenSnackbar(true);
+    }
+  }, [error]);
 
   if (isLoading) {
     return (
@@ -36,10 +67,53 @@ const AllOrders = () => {
     );
   }
 
-  const handleCloseSnackbar = () => {
-    setOpenSnackbar(false);
+  const rows = orders.map((order) => ({
+    id: order._id,
+    date: order.createdAt,
+    total: order.totalPrice,
+    paid: order.isPaid,
+    status: order.status?.toLowerCase(),
+  }));
+
+  const hasOrders = rows.length > 0;
+
+  // Mobile order card component
+  const OrderCard = ({ order }) => {
+    const status = statusConfig[order.status] || { label: order.status || 'Pending', color: 'default' };
+    const paidStatus = order.paid ? 'Paid' : 'Unpaid';
+    const paidColor = order.paid ? 'success' : 'warning';
+
+    return (
+      <Card sx={{ mb: 2, borderRadius: 2, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+        <CardContent sx={{ p: 2 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+            <Typography variant="subtitle1" fontWeight="bold" sx={{ fontFamily: 'monospace' }}>
+              #{order.id.slice(-8)}
+            </Typography>
+            <Chip label={status.label} size="small" color={status.color} />
+          </Box>
+          <Typography variant="body2" color="text.secondary">
+            {format(new Date(order.date), 'MMM dd, yyyy HH:mm')}
+          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
+            <Typography variant="body2" fontWeight="500">
+              Total: {formatNaira(order.total)}
+            </Typography>
+            <Chip label={paidStatus} size="small" color={paidColor} />
+          </Box>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+            <Link href={`/user/orders/${order.id}`} passHref>
+              <Button variant="contained" size="small">
+                Details
+              </Button>
+            </Link>
+          </Box>
+        </CardContent>
+      </Card>
+    );
   };
 
+  // Desktop columns for ProductTable
   const columns = [
     {
       field: 'id',
@@ -58,7 +132,7 @@ const AllOrders = () => {
       minWidth: 150,
       flex: 0.8,
       renderCell: (params) => {
-        const formattedDate = format(new Date(params.value), 'MMM dd, yyyy HH:mm:ss');
+        const formattedDate = format(new Date(params.value), 'MMM dd, yyyy HH:mm');
         return <span className="text-sm">{formattedDate}</span>;
       },
     },
@@ -67,7 +141,7 @@ const AllOrders = () => {
       headerName: 'TOTAL',
       minWidth: 130,
       flex: 0.7,
-      renderCell: (params) => <span className="font-semibold">{params.value}</span>,
+      renderCell: (params) => <span className="font-semibold">{formatNaira(params.value)}</span>,
     },
     {
       field: 'paid',
@@ -76,9 +150,9 @@ const AllOrders = () => {
       flex: 0.6,
       renderCell: (params) =>
         params.value ? (
-          <span className="text-emerald-600 font-semibold">Yes</span>
+          <Chip label="Yes" size="small" color="success" />
         ) : (
-          <span className="text-amber-600 font-semibold">No</span>
+          <Chip label="No" size="small" color="warning" />
         ),
     },
     {
@@ -87,27 +161,8 @@ const AllOrders = () => {
       minWidth: 130,
       flex: 0.8,
       renderCell: (params) => {
-        const status = params.value;
-
-        let statusColor;
-        switch (status) {
-          case 'processing':
-            statusColor = 'text-amber-600';
-            break;
-          case 'shipped':
-            statusColor = 'text-sky-600';
-            break;
-          case 'delivered':
-            statusColor = 'text-emerald-600';
-            break;
-          case 'cancelled':
-            statusColor = 'text-red-500';
-            break;
-          default:
-            statusColor = 'text-gray-500';
-        }
-
-        return <span className={`${statusColor} font-semibold`}>{status}</span>;
+        const status = statusConfig[params.value] || { label: params.value || 'Pending', color: 'default' };
+        return <Chip label={status.label} size="small" color={status.color} />;
       },
     },
     {
@@ -126,23 +181,18 @@ const AllOrders = () => {
     },
   ];
 
-  const rows = mockOrders.map((order) => ({
-    id: order._id || Math.random().toString(36).substring(2, 9),
-    date: order.createdAt,
-    total:
-      order.totalPrice && typeof order.totalPrice === 'number'
-        ? `₦ ${order.totalPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-        : '₦ 0.00',
-    paid: order.isPaid,
+  const tableRows = rows.map((order) => ({
+    id: order.id,
+    date: order.date,
+    total: order.total,
+    paid: order.paid,
     status: order.status,
   }));
 
-  const hasOrders = rows.length > 0;
-
   return (
     <div className="w-full bg-gray-50 min-h-screen py-6 px-4 sm:px-6 lg:px-8">
-      {/* Header Section */}
       <div className="max-w-7xl mx-auto">
+        {/* Header Section */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div className="flex items-center gap-2">
             <div className="p-2 bg-blue-50 rounded-lg">
@@ -155,16 +205,30 @@ const AllOrders = () => {
           </div>
         </div>
 
-        {/* Orders Table / Empty State */}
+        {/* Orders Content */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           {hasOrders ? (
-            <div className="overflow-x-auto">
-              <ProductTable
-                rows={rows}
-                columns={columns}
-                getRowId={(row) => row.id}
-              />
-            </div>
+            <>
+              {/* Desktop: Table */}
+              {!isMobile && (
+                <div className="overflow-x-auto">
+                  <ProductTable
+                    rows={tableRows}
+                    columns={columns}
+                    getRowId={(row) => row.id}
+                  />
+                </div>
+              )}
+
+              {/* Mobile: Cards */}
+              {isMobile && (
+                <div className="p-4">
+                  {rows.map((order) => (
+                    <OrderCard key={order.id} order={order} />
+                  ))}
+                </div>
+              )}
+            </>
           ) : (
             <div className="text-center py-12 px-4">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">

@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import CircularProgress from "@mui/material/CircularProgress";
-import { AiOutlineDelete } from "react-icons/ai";
+import { AiOutlineDelete, AiOutlinePlus } from "react-icons/ai";
 import { RxCrosshair1 } from "react-icons/rx";
 import { Country, State, City } from "country-state-city";
 import { toast } from "react-toastify";
@@ -37,6 +37,11 @@ import {
   CardContent,
   CardActions,
   Divider,
+  Snackbar,
+  Alert,
+  Backdrop,
+  Fade,
+  Modal,
 } from "@mui/material";
 
 const Address = () => {
@@ -48,6 +53,8 @@ const Address = () => {
   const [street, setStreet] = useState("");
   const [addressType, setAddressType] = useState("");
   const [isClient, setIsClient] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(null); // id of address being deleted
   const { userInfo } = useSelector((state) => state.user);
   const dispatch = useDispatch();
   const theme = useTheme();
@@ -63,40 +70,44 @@ const Address = () => {
     e.preventDefault();
     if (addressType === "" || country === "" || state === "" || city === "") {
       toast.error("Please fill all the fields!");
-    } else {
-      const addressData = {
-        country,
-        state,
-        city,
-        street,
-        zipCode,
-        addressType,
-      };
-      const result = await dispatch(addUserAddress(addressData));
-
-      if (result.type === "user/addUserAddress/fulfilled") {
-        toast.success(result.payload.message);
-      } else if (result.type === "user/addUserAddress/rejected") {
-        toast.error(result.payload);
-      }
+      return;
+    }
+    setSubmitting(true);
+    const addressData = {
+      country,
+      state,
+      city,
+      street,
+      zipCode,
+      addressType,
+    };
+    const result = await dispatch(addUserAddress(addressData));
+    if (result.type === "user/addUserAddress/fulfilled") {
+      toast.success(result.payload.message);
       setOpen(false);
+      // Reset form
       setCountry("");
       setState("");
       setCity("");
       setStreet("");
       setZipCode("");
       setAddressType("");
+    } else if (result.type === "user/addUserAddress/rejected") {
+      toast.error(result.payload);
     }
+    setSubmitting(false);
   };
 
   const handleDelete = async (addressId) => {
+    if (!window.confirm("Are you sure you want to delete this address?")) return;
+    setDeleteLoading(addressId);
     const result = await dispatch(deleteUserAddress(addressId));
-
     if (result.type === "user/deleteUserAddress/fulfilled") {
       toast.success(result.payload.message);
     } else if (result.type === "user/deleteUserAddress/rejected") {
       toast.error(result.payload);
     }
+    setDeleteLoading(null);
   };
 
   if (!isClient) {
@@ -125,13 +136,15 @@ const Address = () => {
         </Typography>
         <Button
           variant="contained"
+          startIcon={<AiOutlinePlus />}
           onClick={() => setOpen(true)}
           sx={{
-            bgcolor: "#2563eb", // soft blue
+            bgcolor: "#2563eb",
             "&:hover": { bgcolor: "#1d4ed8" },
             textTransform: "none",
             borderRadius: 2,
             px: 3,
+            py: 1,
           }}
         >
           Add New Address
@@ -287,20 +300,21 @@ const Address = () => {
         </DialogContent>
 
         <DialogActions sx={{ p: 2, bgcolor: "#f8fafc", borderTop: "1px solid #e2e8f0" }}>
-          <Button onClick={() => setOpen(false)} color="inherit">
+          <Button onClick={() => setOpen(false)} color="inherit" disabled={submitting}>
             Cancel
           </Button>
           <Button
             type="submit"
             form="address-form"
             variant="contained"
+            disabled={submitting}
             sx={{
               bgcolor: "#2563eb",
               "&:hover": { bgcolor: "#1d4ed8" },
               textTransform: "none",
             }}
           >
-            Add Address
+            {submitting ? "Adding..." : "Add Address"}
           </Button>
         </DialogActions>
       </Dialog>
@@ -326,6 +340,7 @@ const Address = () => {
                     borderRadius: 2,
                     boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
                     border: "1px solid #f0f0f0",
+                    position: "relative",
                   }}
                 >
                   <CardContent>
@@ -344,8 +359,17 @@ const Address = () => {
                           Zip Code: {item.zipCode}
                         </Typography>
                       </Box>
-                      <IconButton onClick={() => handleDelete(item._id)} size="small">
-                        <AiOutlineDelete color="#ef4444" />
+                      <IconButton
+                        onClick={() => handleDelete(item._id)}
+                        size="small"
+                        disabled={deleteLoading === item._id}
+                        sx={{ color: "#ef4444" }}
+                      >
+                        {deleteLoading === item._id ? (
+                          <CircularProgress size={20} />
+                        ) : (
+                          <AiOutlineDelete />
+                        )}
                       </IconButton>
                     </Box>
                   </CardContent>
@@ -388,9 +412,14 @@ const Address = () => {
                         <IconButton
                           onClick={() => handleDelete(item._id)}
                           size="small"
+                          disabled={deleteLoading === item._id}
                           sx={{ color: "#ef4444" }}
                         >
-                          <AiOutlineDelete />
+                          {deleteLoading === item._id ? (
+                            <CircularProgress size={20} />
+                          ) : (
+                            <AiOutlineDelete />
+                          )}
                         </IconButton>
                       </TableCell>
                     </TableRow>

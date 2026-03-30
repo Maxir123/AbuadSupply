@@ -1,41 +1,100 @@
 // Third-party library imports
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { AiOutlineArrowRight } from 'react-icons/ai';
+import {
+  Box,
+  Typography,
+  Chip,
+  CircularProgress,
+  Alert,
+  Card,
+  CardContent,
+  CardActions,
+  Divider,
+  Button,
+  useMediaQuery,
+  useTheme,
+} from '@mui/material';
 
 // Local imports
 import { getUserAllOrders } from '@/redux/slices/orderSlice';
 import Loader from '../vendor/layout/Loader';
 import ProductTable from '../common/ProductTable';
 
+// Format Nigerian Naira
+const formatNaira = (amount) => {
+  return new Intl.NumberFormat('en-NG', {
+    style: 'currency',
+    currency: 'NGN',
+    minimumFractionDigits: 2,
+  }).format(amount || 0);
+};
+
+// Status mapping (for chips)
+const statusConfig = {
+  refund_approved: { label: 'Refund Approved', color: 'success' },
+  'Processing refund': { label: 'Processing Refund', color: 'warning' },
+  refund_rejected: { label: 'Refund Rejected', color: 'error' },
+};
+
 const OrdersRefund = () => {
-  const { userInfo } = useSelector((state) => state.user);
-  const { orders } = useSelector((state) => state.orders);
+  const router = useRouter();
   const dispatch = useDispatch();
+  const { userInfo } = useSelector((state) => state.user);
+  const { orders, isLoading, error } = useSelector((state) => state.orders);
   const [isClient, setIsClient] = useState(false);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   useEffect(() => {
     setIsClient(true);
     if (!userInfo || !userInfo.email) {
-      Router.push('/user/login');
+      router.push('/user/login');
     }
-  }, [userInfo]);
+  }, [userInfo, router]);
 
   useEffect(() => {
-    if (userInfo?._id) {
+    if (userInfo?._id && !isLoading) {
       dispatch(getUserAllOrders(userInfo._id));
     }
   }, [dispatch, userInfo?._id]);
 
-  if (!isClient || !userInfo || !userInfo.email) {
+  if (!isClient || !userInfo) {
     return <Loader />;
+  }
+
+  if (isLoading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
+        <CircularProgress color="primary" />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box className="max-w-7xl mx-auto px-4 py-8">
+        <Alert severity="error">{error}</Alert>
+      </Box>
+    );
   }
 
   const eligibleRefunds = orders.filter((order) => order.status === 'refund_approved');
 
+  // Desktop columns
   const columns = [
-    { field: 'id', headerName: 'Order ID', minWidth: 150, flex: 0.7 },
+    {
+      field: 'id',
+      headerName: 'Order ID',
+      minWidth: 150,
+      flex: 0.7,
+      renderCell: (params) => (
+        <span className="font-mono text-sm">{`...${params.value.slice(-6)}`}</span>
+      ),
+    },
     {
       field: 'status',
       headerName: 'Status',
@@ -43,17 +102,8 @@ const OrdersRefund = () => {
       flex: 0.7,
       renderCell: (params) => {
         const status = params.row.status;
-
-        let color = 'text-gray-800';
-        if (status === 'Processing refund') color = 'text-amber-600';
-        else if (status === 'refund_approved') color = 'text-emerald-600';
-        else if (status === 'refund_rejected') color = 'text-red-500';
-
-        const label = status
-          .replace(/_/g, ' ')
-          .replace(/\b\w/g, (l) => l.toUpperCase());
-
-        return <span className={`font-semibold ${color}`}>{label}</span>;
+        const config = statusConfig[status] || { label: status, color: 'default' };
+        return <Chip label={config.label} size="small" color={config.color} />;
       },
     },
     {
@@ -70,7 +120,7 @@ const OrdersRefund = () => {
       minWidth: 130,
       flex: 0.8,
       renderCell: (params) => (
-        <span className="font-semibold">₦ {params.value}</span>
+        <span className="font-semibold">{formatNaira(params.value)}</span>
       ),
     },
     {
@@ -78,13 +128,25 @@ const OrdersRefund = () => {
       flex: 1,
       minWidth: 150,
       headerName: '',
-      type: 'number',
       sortable: false,
       renderCell: (params) => (
-        <Link href={`/user/orders/track/${params.id}`} legacyBehavior>
-          <a className="inline-flex items-center justify-center w-8 h-8 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors">
-            <AiOutlineArrowRight size={18} />
-          </a>
+        <Link href={`/user/orders/track/${params.id}`} passHref>
+          <Button
+            variant="outlined"
+            size="small"
+            sx={{
+              minWidth: 'auto',
+              padding: '6px 10px',
+              borderColor: '#3b82f6',
+              color: '#3b82f6',
+              '&:hover': {
+                borderColor: '#2563eb',
+                backgroundColor: '#eff6ff',
+              },
+            }}
+          >
+            <AiOutlineArrowRight size={16} />
+          </Button>
         </Link>
       ),
     },
@@ -93,7 +155,7 @@ const OrdersRefund = () => {
   const rows = eligibleRefunds.map((order) => ({
     id: order._id,
     itemsQty: order.items?.length || 0,
-    total: order.totalPrice?.toFixed(2) || '0.00',
+    total: order.totalPrice || 0,
     status: order.status,
   }));
 
@@ -115,16 +177,69 @@ const OrdersRefund = () => {
           </div>
         </div>
 
-        {/* Orders Table / Empty State */}
+        {/* Orders Content */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           {hasRefunds ? (
-            <div className="overflow-x-auto">
-              <ProductTable
-                rows={rows}
-                columns={columns}
-                getRowId={(row) => row.id}
-              />
-            </div>
+            <>
+              {/* Desktop: Table */}
+              {!isMobile && (
+                <div className="overflow-x-auto">
+                  <ProductTable
+                    rows={rows}
+                    columns={columns}
+                    getRowId={(row) => row.id}
+                  />
+                </div>
+              )}
+
+              {/* Mobile: Cards */}
+              {isMobile && (
+                <div className="p-4">
+                  {rows.map((order) => {
+                    const config = statusConfig[order.status] || { label: order.status, color: 'default' };
+                    return (
+                      <Card
+                        key={order.id}
+                        sx={{
+                          mb: 2,
+                          borderRadius: 2,
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                          border: '1px solid #f0f0f0',
+                        }}
+                      >
+                        <CardContent>
+                          <Box display="flex" justifyContent="space-between" alignItems="flex-start">
+                            <Typography variant="subtitle1" fontWeight="bold" sx={{ fontFamily: 'monospace' }}>
+                              #{order.id.slice(-8)}
+                            </Typography>
+                            <Chip label={config.label} size="small" color={config.color} />
+                          </Box>
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                            Items: {order.itemsQty}
+                          </Typography>
+                          <Typography variant="body2" fontWeight="500" sx={{ mt: 0.5 }}>
+                            Total: {formatNaira(order.total)}
+                          </Typography>
+                        </CardContent>
+                        <Divider />
+                        <CardActions sx={{ justifyContent: 'flex-end', p: 1.5 }}>
+                          <Link href={`/user/orders/track/${order.id}`} passHref>
+                            <Button
+                              variant="contained"
+                              size="small"
+                              endIcon={<AiOutlineArrowRight />}
+                              sx={{ textTransform: 'none' }}
+                            >
+                              View Order
+                            </Button>
+                          </Link>
+                        </CardActions>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </>
           ) : (
             <div className="text-center py-12 px-4">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">

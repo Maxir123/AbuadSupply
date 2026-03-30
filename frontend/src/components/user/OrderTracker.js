@@ -1,19 +1,47 @@
 // Third-party library imports
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import Link from 'next/link';
 import { MdTrackChanges } from 'react-icons/md';
 import Button from '@mui/material/Button';
-import { Tooltip } from '@mui/material';
+import { Tooltip, CircularProgress, Alert, Chip, Box, Typography, Card, CardContent, CardActions, Divider, useMediaQuery, useTheme } from '@mui/material';
 
 // Local imports
 import { getUserAllOrders } from '@/redux/slices/orderSlice';
 import ProductTable from '../common/ProductTable';
 
+// Format Nigerian Naira
+const formatNaira = (amount) => {
+  return new Intl.NumberFormat('en-NG', {
+    style: 'currency',
+    currency: 'NGN',
+    minimumFractionDigits: 2,
+  }).format(amount || 0);
+};
+
+// Status chip mapping
+const statusConfig = {
+  processing: { label: 'Processing', color: 'warning' },
+  shipped: { label: 'Shipped', color: 'info' },
+  delivered: { label: 'Delivered', color: 'success' },
+  cancelled: { label: 'Cancelled', color: 'error' },
+  refunded: { label: 'Refunded', color: 'success' },
+  'Processing refund': { label: 'Processing Refund', color: 'warning' },
+  refund_approved: { label: 'Refund Approved', color: 'success' },
+  refund_rejected: { label: 'Refund Rejected', color: 'error' },
+};
+
 const OrderTracker = () => {
-  const { userInfo } = useSelector((state) => state.user);
-  const { orders } = useSelector((state) => state.orders);
   const dispatch = useDispatch();
+  const { userInfo } = useSelector((state) => state.user);
+  const { orders, isLoading, error } = useSelector((state) => state.orders);
+  const [isClient, setIsClient] = useState(false);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   useEffect(() => {
     if (userInfo?._id) {
@@ -21,6 +49,34 @@ const OrderTracker = () => {
     }
   }, [dispatch, userInfo?._id]);
 
+  if (!isClient || isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <CircularProgress color="primary" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <Alert severity="error" variant="filled">
+          {error}
+        </Alert>
+      </div>
+    );
+  }
+
+  const rows = orders.map((order) => ({
+    id: order._id,
+    itemsQty: order.items?.length || 0,
+    total: order.totalPrice,
+    status: order.status?.toLowerCase(),
+  }));
+
+  const hasOrders = rows.length > 0;
+
+  // Desktop columns
   const columns = [
     {
       field: 'id',
@@ -38,22 +94,8 @@ const OrderTracker = () => {
       flex: 1,
       renderCell: (params) => {
         const status = params.row.status;
-        const statusConfig = {
-          processing: { label: 'Processing', color: 'text-amber-600 bg-amber-50' },
-          shipped: { label: 'Shipped', color: 'text-sky-600 bg-sky-50' },
-          delivered: { label: 'Delivered', color: 'text-emerald-600 bg-emerald-50' },
-          cancelled: { label: 'Cancelled', color: 'text-red-500 bg-red-50' },
-          refunded: { label: 'Refunded', color: 'text-emerald-600 bg-emerald-50' },
-          'Processing refund': { label: 'Processing Refund', color: 'text-amber-600 bg-amber-50' },
-          refund_approved: { label: 'Refund Approved', color: 'text-emerald-600 bg-emerald-50' },
-          refund_rejected: { label: 'Refund Rejected', color: 'text-red-500 bg-red-50' },
-        };
-        const config = statusConfig[status] || { label: status, color: 'text-gray-600 bg-gray-50' };
-        return (
-          <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${config.color}`}>
-            {config.label}
-          </span>
-        );
+        const config = statusConfig[status] || { label: status, color: 'default' };
+        return <Chip label={config.label} size="small" color={config.color} />;
       },
     },
     {
@@ -68,7 +110,7 @@ const OrderTracker = () => {
       headerName: 'TOTAL',
       minWidth: 130,
       flex: 0.7,
-      renderCell: (params) => <span className="font-semibold">₦ {params.value}</span>,
+      renderCell: (params) => <span className="font-semibold">{formatNaira(params.value)}</span>,
     },
     {
       field: 'actions',
@@ -103,15 +145,6 @@ const OrderTracker = () => {
     },
   ];
 
-  const rows = orders.map((order) => ({
-    id: order._id,
-    itemsQty: order.cart?.length || 0,
-    total: order.totalPrice ? order.totalPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00',
-    status: order.status,
-  }));
-
-  const hasOrders = rows.length > 0;
-
   return (
     <div className="w-full bg-gray-50 min-h-screen py-6 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
@@ -128,16 +161,69 @@ const OrderTracker = () => {
           </div>
         </div>
 
-        {/* Orders Table / Empty State */}
+        {/* Orders Content */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           {hasOrders ? (
-            <div className="overflow-x-auto">
-              <ProductTable
-                rows={rows}
-                columns={columns}
-                getRowId={(row) => row.id}
-              />
-            </div>
+            <>
+              {/* Desktop: Table */}
+              {!isMobile && (
+                <div className="overflow-x-auto">
+                  <ProductTable
+                    rows={rows}
+                    columns={columns}
+                    getRowId={(row) => row.id}
+                  />
+                </div>
+              )}
+
+              {/* Mobile: Cards */}
+              {isMobile && (
+                <div className="p-4">
+                  {rows.map((order) => {
+                    const config = statusConfig[order.status] || { label: order.status, color: 'default' };
+                    return (
+                      <Card
+                        key={order.id}
+                        sx={{
+                          mb: 2,
+                          borderRadius: 2,
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                          border: '1px solid #f0f0f0',
+                        }}
+                      >
+                        <CardContent>
+                          <Box display="flex" justifyContent="space-between" alignItems="flex-start">
+                            <Typography variant="subtitle1" fontWeight="bold" sx={{ fontFamily: 'monospace' }}>
+                              #{order.id.slice(-8)}
+                            </Typography>
+                            <Chip label={config.label} size="small" color={config.color} />
+                          </Box>
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                            Items: {order.itemsQty}
+                          </Typography>
+                          <Typography variant="body2" fontWeight="500" sx={{ mt: 0.5 }}>
+                            Total: {formatNaira(order.total)}
+                          </Typography>
+                        </CardContent>
+                        <Divider />
+                        <CardActions sx={{ justifyContent: 'flex-end', p: 1.5 }}>
+                          <Link href={`/user/orders/track/${order.id}`} passHref>
+                            <Button
+                              variant="contained"
+                              size="small"
+                              startIcon={<MdTrackChanges />}
+                              sx={{ textTransform: 'none' }}
+                            >
+                              Track Order
+                            </Button>
+                          </Link>
+                        </CardActions>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </>
           ) : (
             <div className="text-center py-12 px-4">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">

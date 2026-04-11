@@ -63,7 +63,7 @@ const HeaderBottom = ({ categories, handleSearchChange }) => {
 
             <div className="flex items-center gap-3">
               {/* PROFILE */}
-              <Link href={userInfo ? "/profile" : "/user/login"}>
+              <Link href={userInfo ? "/user/profile" : "/user/login"}>
                 <div className="w-8 h-8 rounded-full overflow-hidden">
                   {userInfo?.avatar?.url ? (
                     <Image
@@ -130,54 +130,76 @@ const HeaderBottom = ({ categories, handleSearchChange }) => {
       )}
 
       {/* SIDEBAR */}
-      {sidebar && (
-        <div className="fixed inset-0 z-50">
-          <div
-            onClick={() => setSidebar(false)}
-            className="absolute inset-0 bg-black/40"
-          />
+{sidebar && (
+  <div className="fixed inset-0 z-50">
+    {/* Backdrop with blur */}
+    <div
+      onClick={() => setSidebar(false)}
+      className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-all duration-300"
+    />
 
-          <div className="absolute left-0 top-0 h-full w-[80%] max-w-[320px] bg-white shadow-lg p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-lg">Menu</h3>
-              <button onClick={() => setSidebar(false)}>
-                <XIcon className="h-5 w-5" />
-              </button>
-            </div>
+    {/* Sidebar panel */}
+    <div className="absolute left-0 top-0 h-full w-[85%] max-w-[360px] bg-white shadow-2xl animate-slide-in">
+      <div className="flex flex-col h-full">
+        {/* Header with logo and close button */}
+{/* Header with logo and close button */}
+<div className="flex items-center justify-between p-5 border-b border-gray-100">
+  <Link href="/" onClick={() => setSidebar(false)} className="flex items-center gap-3">
+<div className="relative w-32 h-20">
+  <Image
+    src="/logo.png"
+    alt="Logo"
+    fill
+    className="object-contain"
+  />
+</div>
+  </Link>
+  <button
+    onClick={() => setSidebar(false)}
+    className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+  >
+    <XIcon className="h-5 w-5 text-gray-500" />
+  </button>
+</div>
 
-            <div className="flex flex-col gap-3">
-              {navItems.map((item) => (
-                <Link
-                  key={item.url}
-                  href={item.url}
-                  onClick={() => setSidebar(false)}
-                  className="text-gray-700 font-medium"
-                >
-                  {item.title}
-                </Link>
-              ))}
-
-              <hr />
-
+        {/* Navigation Links */}
+        <div className="flex-1 overflow-y-auto py-6 px-4">
+          <div className="flex flex-col gap-2">
+            {navItems.map((item) => (
               <Link
-                href="/user/login"
+                key={item.url}
+                href={item.url}
                 onClick={() => setSidebar(false)}
-                className="bg-gray-900 text-white text-center py-2 rounded"
+                className="flex items-center gap-3 px-4 py-3 text-gray-700 font-medium rounded-xl hover:bg-gray-50 hover:text-blue-600 transition-all duration-200"
               >
-                Sign In
+                {item.icon && <span className="text-gray-400">{item.icon}</span>}
+                {item.title}
               </Link>
-
-              <Link
-                href="/user/register"
-                onClick={() => setSidebar(false)}
-                className="border border-gray-900 text-center py-2 rounded"
-              >
-                Sign Up
-              </Link>
-            </div>
+            ))}
           </div>
         </div>
-      )}
+
+        {/* Auth Buttons */}
+        <div className="p-5 border-t border-gray-100 space-y-3">
+          <Link
+            href="/user/login"
+            onClick={() => setSidebar(false)}
+            className="block w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white text-center py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 transition-all shadow-md"
+          >
+            Sign In
+          </Link>
+          <Link
+            href="/user/register"
+            onClick={() => setSidebar(false)}
+            className="block w-full border-2 border-gray-300 text-gray-700 text-center py-3 rounded-xl font-semibold hover:border-blue-500 hover:text-blue-600 transition-all"
+          >
+            Create Account
+          </Link>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
 
       {/* CART */}
       {openCart && <Cart setOpenCart={setOpenCart} />}

@@ -44,6 +44,7 @@ const orderSchema = new mongoose.Schema({
     status: { type: String, enum: ["Pending", "Completed", "Failed"], default: "Pending" },
     method: { type: String }, // E.g., "Credit Card", "PayPal"
   },
+  isPaid: { type: Boolean, default: false },
   paidAt: {
     type: Date,
   },

@@ -20,6 +20,7 @@ import { removeItemFromCart } from "@/redux/slices/cartSlice";
 import fallbackImage from "../../../public/images/fallbackImage.jpg";
 import Footer from "@/components/layout/Footer";
 import Header from "@/components/layout/Header";
+// Paystack is NOT imported at the top level anymore
 
 // Format Nigerian Naira
 const formatNaira = (amount) => {
@@ -49,6 +50,7 @@ const PlaceOrder = ({ categories }) => {
   const [shippingCost, setShippingCost] = useState(0);
   const [finalTotal, setFinalTotal] = useState(0);
   const [isMounted, setIsMounted] = useState(false);
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -79,45 +81,110 @@ const PlaceOrder = ({ categories }) => {
     setFinalTotal(newTotalItemPrice + newShippingCost);
   }, [orderItems]);
 
-  const handlePlaceOrder = () => {
-    const newOrder = {
-      items:
-        orderItems?.map((item) => ({
-          productId: item._id,
-          name: item.name,
-          quantity: item.qty,
-          price: item.discountPrice || item.originalPrice,
-          vendorId: item.vendorId,
-        })) || [],
-      user: userInfo?._id,
-      shippingAddress: shippingAddress
-        ? {
-            fullName: userInfo?.name,
-            address: shippingAddress.street,
-            city: shippingAddress.city,
-            postalCode: shippingAddress.zipCode,
-            country: shippingAddress.country || "Nigeria",
-          }
-        : null,
-      totalPrice: finalTotal,
-      status: "processing",
-      paymentInfo: {
-        method: paymentMethod || "Cash on Delivery",
-        status: "Pending",
-      },
-    };
+  // Prepare order data object (shared between COD and Paystack success)
+  const buildOrderData = () => ({
+    items:
+      orderItems?.map((item) => ({
+        productId: item._id,
+        name: item.name,
+        quantity: item.qty,
+        price: item.discountPrice || item.originalPrice,
+        vendorId: item.vendorId,
+      })) || [],
+    user: userInfo?._id,
+    shippingAddress: shippingAddress
+      ? {
+          fullName: userInfo?.name,
+          address: shippingAddress.street,
+          city: shippingAddress.city,
+          postalCode: shippingAddress.zipCode,
+          country: shippingAddress.country || "Nigeria",
+        }
+      : null,
+    totalPrice: finalTotal,
+    status: "processing",
+    paymentInfo: {
+      method: paymentMethod || "Cash on Delivery",
+      status: "Pending",
+    },
+  });
 
-    dispatch(createOrder(newOrder))
-      .unwrap()
-      .then(() => {
-        toast.success("Order placed successfully!");
-        dispatch(resetCheckout());
-        router.push("/order-success");
-      })
-      .catch((error) => {
-        toast.error(`Order failed: ${error.message}`);
-      });
+  const createOrderAndRedirect = async () => {
+    const orderData = buildOrderData();
+    try {
+      await dispatch(createOrder(orderData)).unwrap();
+      toast.success("Order placed successfully!");
+      dispatch(resetCheckout());
+      router.push("/order-success");
+    } catch (error) {
+      toast.error(`Order failed: ${error.message}`);
+    } finally {
+      setIsPlacingOrder(false);
+    }
   };
+
+  const handlePaystackPayment = async () => {
+    if (!userInfo?.email) {
+      toast.error("User email not found. Please log in again.");
+      return;
+    }
+
+    // Dynamically import Paystack only on client side
+    const PaystackPop = (await import("@paystack/inline-js")).default;
+
+    const paystack = new PaystackPop();
+    paystack.newTransaction({
+      key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY,
+      email: userInfo.email,
+      amount: finalTotal * 100, // Paystack uses kobo
+      currency: "NGN",
+      ref: "ORDER_" + Date.now() + "_" + Math.floor(Math.random() * 1000000),
+      onSuccess: async (transaction) => {
+        // Payment successful – create the order
+        toast.success("Payment successful! Placing order...");
+        await createOrderAndRedirect();
+      },
+      onCancel: () => {
+        toast.info("Payment cancelled.");
+        setIsPlacingOrder(false);
+      },
+    });
+  };
+
+const handlePlaceOrder = () => {
+  if (!userInfo) {
+    toast.error("Please log in to place order.");
+    router.push("/login");
+    return;
+  }
+  if (!shippingAddress) {
+    toast.error("Please provide a shipping address.");
+    router.push("/checkout/shipping-address");
+    return;
+  }
+  if (!paymentMethod) {
+    toast.error("Please select a payment method.");
+    router.push("/checkout/payment-method");
+    return;
+  }
+  if (orderItems.length === 0) {
+    toast.error("Your cart is empty.");
+    return;
+  }
+
+  setIsPlacingOrder(true);
+
+  const normalizedMethod = paymentMethod.toLowerCase().trim();
+
+  if (normalizedMethod === "paystack") {
+    handlePaystackPayment();
+  } else if (normalizedMethod === "cash on delivery" || normalizedMethod === "cod") {
+    createOrderAndRedirect("Pending");
+  } else {
+    toast.error(`Invalid payment method: "${paymentMethod}".`);
+    setIsPlacingOrder(false);
+  }
+};
 
   const increment = (item) => {
     if (item.stock < item.qty + 1) {
@@ -298,7 +365,7 @@ const PlaceOrder = ({ categories }) => {
             <div className="text-center py-12">
               <p className="text-gray-500">Your cart is empty.</p>
               <Button
-                onClick={() => router.push("/")}
+                onClick={() => router.push("/product")}
                 className="mt-4 bg-blue-600 hover:bg-blue-700 text-white"
               >
                 Continue Shopping
@@ -330,9 +397,10 @@ const PlaceOrder = ({ categories }) => {
               </div>
               <Button
                 onClick={handlePlaceOrder}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg mt-6"
+                disabled={isPlacingOrder}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg mt-6 disabled:opacity-70"
               >
-                Place Order
+                {isPlacingOrder ? "Processing..." : "Place Order"}
               </Button>
             </CardContent>
           </Card>

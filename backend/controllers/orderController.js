@@ -4,24 +4,22 @@ const Notification = require("../models/notificationModel");
 const VendorNotification = require("../models/vendorNotificationModel");
 
 const createOrder = expressAsyncHandler(async (req, res) => {
-
-  const { items, user, shippingAddress, totalPrice, status, paymentInfo } = req.body;
+  const { 
+    items, user, shippingAddress, totalPrice, status, paymentInfo, 
+    isPaid, paidAt            // ← add these
+  } = req.body;
 
   try {
     const vendorOrdersMap = new Map();
 
-    // Group items by vendorId
     for (const item of items) {
       const vendorId = item.vendorId;
-      if (!vendorOrdersMap.has(vendorId)) {
-        vendorOrdersMap.set(vendorId, []);
-      }
+      if (!vendorOrdersMap.has(vendorId)) vendorOrdersMap.set(vendorId, []);
       vendorOrdersMap.get(vendorId).push(item);
     }
 
     const orders = [];
 
-    // Loop through each vendor and create separate orders + notifications
     for (const [vendorId, vendorItems] of vendorOrdersMap) {
       const vendorTotalPrice = vendorItems.reduce(
         (acc, item) => acc + item.price * item.quantity,
@@ -41,12 +39,13 @@ const createOrder = expressAsyncHandler(async (req, res) => {
         totalPrice: vendorTotalPrice,
         status,
         paymentInfo,
+        isPaid: isPaid || false,      // ← save the paid flag
+        paidAt: paidAt || null,        // ← save timestamp if paid
       });
 
       const savedOrder = await newOrder.save();
       orders.push(savedOrder);
 
-      //Create a notification for the vendor
       await VendorNotification.create({
         vendor: vendorId,
         type: "new_order",
@@ -54,17 +53,12 @@ const createOrder = expressAsyncHandler(async (req, res) => {
       });
     }
 
-    //Create a single admin notification
     await Notification.create({
       type: "new_order",
       message: `📦 New order placed with ${items.length} item(s)!`,
     });
 
-    res.status(201).json({
-      success: true,
-      orders,
-      message: "Orders created successfully",
-    });
+    res.status(201).json({ success: true, orders, message: "Orders created successfully" });
   } catch (error) {
     console.error("Order creation error:", error);
     res.status(500).json({ error: error.message });

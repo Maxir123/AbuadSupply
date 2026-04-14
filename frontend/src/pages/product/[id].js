@@ -8,7 +8,7 @@ import Head from "next/head";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { AiFillHeart, AiOutlineHeart, AiOutlineShoppingCart, AiOutlineStar, AiFillStar } from "react-icons/ai";
-import { FaStar, FaRegStar, FaStarHalfAlt } from "react-icons/fa";
+import { FaStar, FaRegStar, FaStarHalfAlt, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { MdOutlineVerified, MdOutlineLocalShipping } from "react-icons/md";
 import { HiOutlineCurrencyNaira } from "react-icons/hi";
 
@@ -19,9 +19,6 @@ import ProductCard from "@/components/product/ProductCard";
 import { addItemToCart } from "@/redux/slices/cartSlice";
 import { addItemToWishList, removeItemFromWishList } from "@/redux/slices/wishListSlice";
 import { createProductReview } from "@/redux/slices/productSlice";
-
-import { Button, TextField, Modal, Box, Rating, CircularProgress } from "@mui/material";
-import { Typography as JoyTypography } from "@mui/joy";
 
 const HeaderPromo = dynamic(() => import("@/components/layout/HeaderPromo"), { ssr: false });
 
@@ -34,7 +31,55 @@ const formatNaira = (amount) => {
   }).format(amount || 0);
 };
 
-const ProductDetailPage = ({ product, similarProducts, vendorProducts, categories }) => {
+// Helper to format date
+const formatDate = (dateString) => {
+  const options = { year: 'numeric', month: 'long', day: 'numeric' };
+  return new Date(dateString).toLocaleDateString(undefined, options);
+};
+
+// Horizontal scrollable container component
+const ScrollableRow = ({ title, children }) => {
+  const scrollRef = React.useRef(null);
+
+  const scroll = (direction) => {
+    if (scrollRef.current) {
+      const { scrollLeft, clientWidth } = scrollRef.current;
+      const scrollAmount = direction === 'left' ? scrollLeft - clientWidth : scrollLeft + clientWidth;
+      scrollRef.current.scrollTo({ left: scrollAmount, behavior: 'smooth' });
+    }
+  };
+
+  return (
+    <div className="relative">
+      {title && <h2 className="text-xl font-bold mb-4">{title}</h2>}
+      <div className="relative group">
+        <button
+          onClick={() => scroll('left')}
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/80 hover:bg-white shadow-md rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-0"
+          aria-label="Scroll left"
+        >
+          <FaChevronLeft className="text-gray-700" />
+        </button>
+        <div
+          ref={scrollRef}
+          className="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth pb-2"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
+          {children}
+        </div>
+        <button
+          onClick={() => scroll('right')}
+          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/80 hover:bg-white shadow-md rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity"
+          aria-label="Scroll right"
+        >
+          <FaChevronRight className="text-gray-700" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const ProductDetailPage = ({ product, similarProducts, vendorProducts, categories = [] }) => {
   const router = useRouter();
   const { id } = router.query;
   const dispatch = useDispatch();
@@ -43,15 +88,12 @@ const ProductDetailPage = ({ product, similarProducts, vendorProducts, categorie
   const { wishListItems } = useSelector((s) => s.wishList);
   const { userInfo } = useSelector((s) => s.user);
   const isLoggedIn = !!userInfo?._id;
-  const hasReviewed = product?.reviews?.some((r) => r?.user?._id === userInfo?._id);
 
   // Local state
   const [count, setCount] = useState(1);
   const [isInWishlist, setIsInWishlist] = useState(false);
   const [selectedImage, setSelectedImage] = useState(product?.images?.[0]?.url || "/default-image.jpg");
-  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
-  const [review, setReview] = useState({ rating: 0, comment: "" });
-  const [submitting, setSubmitting] = useState(false);
+  const [showReviews, setShowReviews] = useState(false); // Reviews toggle state
 
   const originalPrice = product?.originalPrice || 0;
   const discountPrice = product?.discountPrice || 0;
@@ -84,60 +126,6 @@ const ProductDetailPage = ({ product, similarProducts, vendorProducts, categorie
       dispatch(addItemToWishList(product));
       setIsInWishlist(true);
       toast.success("Added to wishlist");
-    }
-  };
-
-  const openReviewModal = () => {
-    if (!isLoggedIn) {
-      toast.info("Please log in to leave a review.");
-      router.push(`/user/login?redirect=/product/${product._id}`);
-      return;
-    }
-    if (hasReviewed) {
-      toast.info("You have already reviewed this product.");
-      return;
-    }
-    setIsReviewModalOpen(true);
-  };
-
-  const closeReviewModal = () => {
-    setIsReviewModalOpen(false);
-    setReview({ rating: 0, comment: "" });
-  };
-
-  const submitReview = async () => {
-    if (!isLoggedIn) {
-      toast.info("Please log in to review.");
-      router.push(`/auth/login?redirect=/product/${product._id}`);
-      return;
-    }
-    if (hasReviewed) {
-      toast.info("You already reviewed this product.");
-      return;
-    }
-    if (!review.rating) return toast.error("Please select a rating.");
-
-    setSubmitting(true);
-    const newReviewData = {
-      user: userInfo,
-      rating: review.rating,
-      comment: (review.comment || "").trim(),
-      productId: product._id,
-    };
-
-    try {
-      const result = await dispatch(createProductReview(newReviewData));
-      if (result.type.endsWith("/fulfilled")) {
-        toast.success("Review submitted! Thank you.");
-        closeReviewModal();
-        router.replace(`/product/${product._id}`);
-      } else {
-        toast.error(result.payload || "Failed to submit review.");
-      }
-    } catch (err) {
-      toast.error("Something went wrong.");
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -284,80 +272,93 @@ const ProductDetailPage = ({ product, similarProducts, vendorProducts, categorie
                   >
                     <AiOutlineShoppingCart size={20} /> Add to Cart
                   </button>
-                  <button
-                    onClick={openReviewModal}
-                    className="border border-gray-300 hover:bg-gray-100 px-6 py-2 rounded-lg font-medium transition"
-                  >
-                    Write a Review
-                  </button>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Reviews Modal (Improved) */}
-          <Modal open={isReviewModalOpen} onClose={closeReviewModal}>
-            <Box
-              sx={{
-                position: "absolute",
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-                width: { xs: "90%", sm: 500 },
-                bgcolor: "background.paper",
-                borderRadius: 3,
-                boxShadow: 24,
-                p: 4,
-              }}
-            >
-              <JoyTypography level="h4" className="mb-2">Rate this product</JoyTypography>
-              <div className="flex items-center gap-2 mb-4">
-                <Rating
-                  name="product-rating"
-                  value={review.rating}
-                  onChange={(e, newVal) => setReview({ ...review, rating: newVal || 0 })}
-                  precision={1}
-                  size="large"
-                />
-                <span className="text-sm text-gray-500">{review.rating} / 5</span>
-              </div>
-              <TextField
-                fullWidth
-                multiline
-                rows={4}
-                label="Your review (optional)"
-                placeholder="Tell others what you think..."
-                value={review.comment}
-                onChange={(e) => setReview({ ...review, comment: e.target.value })}
-                variant="outlined"
-              />
-              <div className="flex justify-end gap-2 mt-4">
-                <Button onClick={closeReviewModal} variant="outlined">Cancel</Button>
-                <Button onClick={submitReview} variant="contained" disabled={submitting}>
-                  {submitting ? <CircularProgress size={24} /> : "Submit Review"}
-                </Button>
-              </div>
-            </Box>
-          </Modal>
 
-          {/* Related Products & More from Store */}
-          <div className="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2">
-              <h2 className="text-xl font-bold mb-4">You May Also Like</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {similarProducts.slice(0, 4).map((p) => (
-                  <ProductCard key={p._id} product={p} />
+          {/* You May Also Like - Horizontally Scrollable */}
+          {similarProducts.length > 0 && (
+            <div className="mt-12">
+              <ScrollableRow title="You May Also Like">
+                {similarProducts.map((p) => (
+                  <div key={p._id} className="w-64 flex-shrink-0">
+                    <ProductCard product={p} />
+                  </div>
                 ))}
-              </div>
+              </ScrollableRow>
             </div>
-            <div>
-              <h2 className="text-xl font-bold mb-4">More from this store</h2>
-              <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
-                {vendorProducts.slice(0, 6).map((p) => (
-                  <ProductCard key={p._id} product={p} isMoreFromSeller />
+          )}
+
+          {/* More from this store - Horizontally Scrollable */}
+          {vendorProducts.length > 0 && (
+            <div className="mt-12">
+              <ScrollableRow title="More from this store">
+                {vendorProducts.map((p) => (
+                  <div key={p._id} className="w-64 flex-shrink-0">
+                    <ProductCard product={p} isMoreFromSeller />
+                  </div>
                 ))}
-              </div>
+              </ScrollableRow>
             </div>
+          )}
+
+          {/* Customer Reviews Section - Bottom with Toggle */}
+          <div className="mt-12 bg-white rounded-2xl shadow-lg p-6 lg:p-8">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-800">Customer Reviews</h2>
+              <button
+                onClick={() => setShowReviews(!showReviews)}
+                className="text-blue-600 hover:text-blue-800 font-medium text-sm flex items-center gap-1"
+              >
+                {showReviews ? "Hide Reviews" : "Show Reviews"} ({product.reviews?.length || 0})
+              </button>
+            </div>
+
+            {showReviews && (
+              <div className="mt-6">
+                {product.reviews && product.reviews.length > 0 ? (
+                  <div className="space-y-6">
+                    {product.reviews.map((review, index) => (
+                      <div key={review._id || index} className="border-b border-gray-100 pb-6 last:border-0">
+                        <div className="flex items-start gap-4">
+                          <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-semibold flex-shrink-0">
+                            {review.user?.name?.charAt(0).toUpperCase() || 'U'}
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between flex-wrap gap-2">
+                              <div>
+                                <p className="font-medium text-gray-800">{review.user?.name || "Anonymous"}</p>
+                                <div className="flex items-center gap-1 mt-0.5">
+                                  {[...Array(5)].map((_, i) => (
+                                    <span key={i}>
+                                      {review.rating >= i + 1 ? (
+                                        <FaStar className="text-yellow-400 text-sm" />
+                                      ) : (
+                                        <FaRegStar className="text-gray-300 text-sm" />
+                                      )}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                              <span className="text-sm text-gray-400">
+                                {formatDate(review.createdAt)}
+                              </span>
+                            </div>
+                            {review.comment && (
+                              <p className="text-gray-600 mt-2 text-sm leading-relaxed">{review.comment}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 text-center py-6">No reviews yet.</p>
+                )}
+              </div>
+            )}
           </div>
         </main>
 
@@ -422,12 +423,15 @@ export async function getServerSideProps({ params }) {
       axios.get(`${baseURL}/api/categories`).catch(() => null),
     ]);
 
+
+
     return {
       props: {
         product,
         similarProducts: similarProductsRes?.data?.products || [],
         vendorProducts: vendorProductsRes?.data?.products || [],
         categories: categoriesRes?.data?.categories || [],
+
       },
     };
   } catch (error) {

@@ -25,6 +25,7 @@ const HeaderUpper = ({ handleSearchChange, searchData }) => {
   const [openCart, setOpenCart] = useState(false);
   const [openWishlist, setOpenWishlist] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState(""); // ✅ added missing state
 
   // Refs for outside click handling
   const searchContainerRef = useRef(null);
@@ -65,7 +66,22 @@ const HeaderUpper = ({ handleSearchChange, searchData }) => {
     };
   }, []);
 
-  // Memoize search results to prevent unnecessary re-renders
+  // Handle search input change
+  const onSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    handleSearchChange(value);
+  };
+
+  // Handle search icon click
+  const handleSearchClick = () => {
+    if (searchTerm.trim()) {
+      handleSearchChange(searchTerm);
+      inputRef.current?.blur();
+    }
+  };
+
+  // Memoize search results dropdown
   const searchResultsDropdown = useMemo(() => {
     if (!searchData?.length || !isDropdownOpen) return null;
 
@@ -122,17 +138,25 @@ const HeaderUpper = ({ handleSearchChange, searchData }) => {
           <input
             ref={inputRef}
             type="text"
-            placeholder="Search products..."
-            onChange={handleSearchChange}
-            onFocus={() => searchData?.length && setIsDropdownOpen(true)}
-            className="flex-1 h-full px-4 text-gray-800 outline-none"
+            placeholder="Search for products..."
+            className="w-full px-4 py-2 rounded-l-lg border-0 focus:ring-2 focus:ring-blue-500 outline-none"
+            role="combobox"
+            aria-expanded={isDropdownOpen} // ✅ uses existing state
+            aria-label="Search"
             aria-autocomplete="list"
             aria-controls="search-results"
-            aria-expanded={isDropdownOpen}
+            value={searchTerm}
+            onChange={onSearchChange}
+            onFocus={() => setIsDropdownOpen(!!searchData?.length)}
+            onBlur={() => setTimeout(() => setIsDropdownOpen(false), 200)} // delay to allow click on results
           />
-          <span className="w-12 h-full flex items-center justify-center bg-green-600 hover:bg-green-700 transition-colors cursor-pointer">
+          <button
+            onClick={handleSearchClick}
+            className="w-12 h-full flex items-center justify-center bg-green-600 hover:bg-green-700 transition-colors cursor-pointer"
+            aria-label="Submit search"
+          >
             <SearchIcon className="h-5 w-5 text-white" aria-hidden="true" />
-          </span>
+          </button>
         </div>
         {searchResultsDropdown}
       </div>

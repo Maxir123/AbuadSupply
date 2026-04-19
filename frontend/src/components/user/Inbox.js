@@ -115,8 +115,9 @@ const Inbox = () => {
               <Typography variant="h6" className="text-gray-900 font-medium mb-2">
                 No messages yet
               </Typography>
+              // Inside the empty state message
               <Typography className="text-gray-500 max-w-sm mx-auto">
-                When you receive messages from sellers or support, they'll appear here.
+                When you receive messages from sellers or support, they&apos;ll appear here.
               </Typography>
             </div>
           )}

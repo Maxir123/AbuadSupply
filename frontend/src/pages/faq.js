@@ -1,99 +1,130 @@
-// pages/faq.js
-import { useState } from 'react';
-import Head from 'next/head';
-import Header from '@/components/layout/Header';
-import Footer from '@/components/layout/Footer';
-import styles from '@/styles/styles';
+import { useState, useMemo } from "react";
+import Head from "next/head";
+import Link from "next/link";
+import Header from "@/components/layout/Header";
+import Footer from "@/components/layout/Footer";
+import {
+  FaSearch,
+  FaChevronDown,
+  FaChevronUp,
+  FaTags,
+  FaBox,
+  FaTruck,
+  FaCreditCard,
+  FaHeadset,
+} from "react-icons/fa";
 
-const Faq = () => {
-  const [activeTab, setActiveTab] = useState(0);
+const FAQ_ITEMS = [ /* ... same as before ... */ ];
 
-  const toggleTab = (tab) => {
-    setActiveTab(activeTab === tab ? 0 : tab);
-  };
+const CATEGORIES = [ /* ... same ... */ ];
 
+const AccordionItem = ({ question, answer, isOpen, toggle }) => {
   return (
-    <div className={`${styles.section} my-8 px-4 sm:px-6 lg:px-8`}>
-      <h2 className="text-3xl font-bold text-gray-900 mb-8">FAQ</h2>
-      <div className="mx-auto space-y-4">
-        {/* FAQ Questions */}
-        {[ 
-          { id: 1, question: "How do I track my order?", answer: "Depending on the shipping method you chose, it's possible that the tracking information might not be visible immediately." },
-          { id: 2, question: "What is your return policy?", answer: "If you're not satisfied with your purchase, we accept returns within 30 days of delivery. To initiate a return, please email us at support@myecommercestore.com with your order number and a brief explanation of why you're returning the item." },
-          { id: 3, question: "Can I change or cancel my order?", answer: "Unfortunately, once an order has been placed, we are not able to make changes or cancellations. If you no longer want the items you've ordered, you can return them for a refund within 30 days of delivery." },
-          { id: 4, question: "How do I contact customer support?", answer: "You can contact our customer support team by emailing us at support@myecommercestore.com, or by calling us at (555) 123-4567 between the hours of 9am and 5pm EST, Monday through Friday." },
-          { id: 5, question: "What payment methods do you accept?", answer: "We accept visa, mastercard, paypal payment methods also we have cash on delivery system." },
-          { id: 5, question: "What payment methods do you accept?", answer: "We accept Visa, MasterCard, PayPal, and we also offer cash on delivery." },
-          { id: 6, question: "Do you offer international shipping?", answer: "Yes, we offer international shipping to most countries. Shipping rates and delivery times vary based on your location." },
-          { id: 7, question: "Can I track my return?", answer: "Yes, once your return is processed, we will send you a confirmation email with tracking information." },
-          { id: 8, question: "How long does shipping take?", answer: "Shipping times vary depending on your location and the shipping method chosen. Generally, domestic orders arrive within 5-7 business days, while international orders may take 2-4 weeks." },
-          { id: 9, question: "What should I do if I received a defective item?", answer: "If you receive a defective item, please contact us immediately at support@myecommercestore.com with your order number and a description of the issue. We will assist you in resolving the problem." },
-          { id: 10, question: "Can I use multiple discount codes on one order?", answer: "No, only one discount code can be applied per order. However, you may use one code for each transaction." },
-        ].map(({ id, question, answer }) => (
-          <div key={id} className="border-b border-gray-200 pb-4">
-            <button
-              className="flex items-center justify-between w-full"
-              onClick={() => toggleTab(id)}
-            >
-              <span className="text-lg font-medium text-gray-900">
-                {question}
-              </span>
-              {activeTab === id ? (
-                <svg
-                  className="h-6 w-6 text-gray-500"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              ) : (
-                <svg
-                  className="h-6 w-6 text-gray-500"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
-              )}
-            </button>
-            {activeTab === id && (
-              <div className="mt-4">
-                <p className="text-base text-gray-500">
-                  {answer}
-                </p>
-              </div>
-            )}
-          </div>
-        ))}
+    <div className="border-b border-gray-200 hover:bg-gray-50">
+      <button
+        onClick={toggle}
+        className="w-full flex justify-between items-center py-4 text-left"
+      >
+        <span className="font-medium text-gray-800">{question}</span>
+        {isOpen ? <FaChevronUp /> : <FaChevronDown />}
+      </button>
+      <div
+        className={`overflow-hidden transition-all duration-300 ${
+          isOpen ? "max-h-40 pb-4" : "max-h-0"
+        }`}
+      >
+        <p className="text-gray-600 text-sm">{answer}</p>
       </div>
     </div>
   );
 };
 
-const FAQPage = () => {
+const FaqContent = () => {
+  const [activeId, setActiveId] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [activeCategory, setActiveCategory] = useState("all");
+
+  const toggleItem = (id) => {
+    setActiveId(activeId === id ? null : id);
+  };
+
+  const filteredItems = useMemo(() => {
+    return FAQ_ITEMS.filter((item) => {
+      const matchCategory =
+        activeCategory === "all" || item.category === activeCategory;
+      const matchSearch =
+        searchTerm === "" ||
+        item.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.answer.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchCategory && matchSearch;
+    });
+  }, [activeCategory, searchTerm]);
+
   return (
-    <>
-      <Head>
-        <title>FAQ</title>
-        <meta name="description" content="Frequently Asked Questions" />
-      </Head>
-      <Header />
-      <Faq />
-      <Footer />
-    </>
+    <div className="py-12 px-4 max-w-4xl mx-auto">
+      <h1 className="text-4xl font-bold text-center mb-6">
+        Frequently Asked Questions
+      </h1>
+      <div className="relative mb-8">
+        <FaSearch className="absolute left-3 top-3 text-gray-400" />
+        <input
+          className="w-full pl-10 py-2 border rounded-full"
+          placeholder="Search..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </div>
+      <div className="flex flex-wrap gap-2 justify-center mb-8">
+        {CATEGORIES.map((cat) => (
+          <button
+            key={cat.id}
+            onClick={() => setActiveCategory(cat.id)}
+            className={`px-3 py-1 rounded-full text-sm border ${
+              activeCategory === cat.id
+                ? "bg-blue-600 text-white"
+                : "bg-white text-gray-600"
+            }`}
+          >
+            {cat.label}
+          </button>
+        ))}
+      </div>
+      <div className="bg-white rounded-xl shadow p-4">
+        {filteredItems.map((item) => (
+          <AccordionItem
+            key={item.id}
+            question={item.question}
+            answer={item.answer}
+            isOpen={activeId === item.id}
+            toggle={() => toggleItem(item.id)}
+          />
+        ))}
+      </div>
+      <div className="text-center mt-10 bg-blue-50 p-6 rounded-xl">
+        <h3 className="font-semibold text-lg">Still need help?</h3>
+        <p className="text-gray-600 mb-4">
+          Our support team is ready to help you.
+        </p>
+        <Link
+          href="/support"
+          className="inline-flex items-center bg-blue-600 text-white px-5 py-2 rounded-full"
+        >
+          Contact Support →
+        </Link>
+      </div>
+    </div>
   );
 };
 
-export default FAQPage;
+export default function FAQPage() {
+  return (
+    <>
+      <Head>
+        <title>FAQ | Aboad Supply</title>
+      </Head>
+      <Header />
+      <FaqContent />
+      <Footer />
+    </>
+  );
+}

@@ -56,12 +56,11 @@ const OrdersRefund = () => {
     }
   }, [userInfo, router]);
 
-  useEffect(() => {
-    if (userInfo?._id && !isLoading) {
-      dispatch(getUserAllOrders(userInfo._id));
-    }
-  }, [dispatch, userInfo?._id]);
-
+useEffect(() => {
+  if (userInfo?._id && !isLoading) {
+    dispatch(getUserAllOrders(userInfo._id));
+  }
+}, [dispatch, userInfo?._id, isLoading]); // ✅ added isLoading
   if (!isClient || !userInfo) {
     return <Loader />;
   }
@@ -248,9 +247,9 @@ const OrdersRefund = () => {
               <h3 className="text-lg font-medium text-gray-900 mb-2">
                 No refunded orders
               </h3>
-              <p className="text-gray-500 max-w-sm mx-auto">
-                You don't have any approved refunds yet. When an order is refunded, it will appear here.
-              </p>
+             <p className="text-gray-500 max-w-sm mx-auto">
+              You don&apos;t have any approved refunds yet. When an order is refunded, it will appear here.
+            </p>
             </div>
           )}
         </div>

@@ -132,17 +132,18 @@ const PaymentMethod = () => {
                 />
               </Grid>
               <Grid item xs={6} sm={3}>
-                <TextField
-                  label="Expiry Date (MM/YY)"
-                  name="expiryDate"
-                  value={cardDetails.expiryDate}
-                  onChange={handleChange}
-                  fullWidth
-                  size="small"
-                  className="bg-gray-50"
-                  placeholder="MM/YY"
-                  sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
-                />
+              <TextField
+                label="Expiry Date (MM/YY)" // This is fine, but if ESLint complains, change to:
+                // label={'Expiry Date (MM/YY)'}
+                name="expiryDate"
+                value={cardDetails.expiryDate}
+                onChange={handleChange}
+                fullWidth
+                size="small"
+                className="bg-gray-50"
+                placeholder="MM/YY"
+                sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
+              />
               </Grid>
               <Grid item xs={6} sm={3}>
                 <TextField

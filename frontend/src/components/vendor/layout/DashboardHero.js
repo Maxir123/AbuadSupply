@@ -161,7 +161,7 @@ const DashboardHero = () => {
             Welcome back, {vendorInfo?.name || vendorInfo?.email?.split("@")[0] || "Vendor"}!
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Here's what's happening with your store today.
+            Here&apos;s what&apos;s happening with your store today.
           </Typography>
         </Box>
         <Link href="/vendor/products">

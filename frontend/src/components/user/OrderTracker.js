@@ -233,7 +233,7 @@ const OrderTracker = () => {
                 No orders to track
               </h3>
               <p className="text-gray-500 max-w-sm mx-auto">
-                You haven't placed any orders yet. When you do, you can track them here.
+                You haven&apos;t placed any orders yet. When you do, you can track them here.
               </p>
             </div>
           )}

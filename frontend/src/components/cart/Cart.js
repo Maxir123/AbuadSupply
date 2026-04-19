@@ -6,7 +6,6 @@ import { addItemToCart, removeItemFromCart } from "@/redux/slices/cartSlice";
 import Link from "next/link";
 import SingleCartCard from "./SingleCartCard";
 
-// Format Nigerian Naira
 const formatNaira = (amount) => {
   return new Intl.NumberFormat("en-NG", {
     style: "currency",
@@ -27,7 +26,6 @@ const Cart = ({ setOpenCart }) => {
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex justify-end">
       <div className="relative w-full max-w-md sm:max-w-lg md:max-w-xl bg-white h-full shadow-2xl flex flex-col animate-slide-in-right">
-        {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center gap-2">
             <IoBagHandleOutline size={24} className="text-gray-700" />
@@ -44,14 +42,13 @@ const Cart = ({ setOpenCart }) => {
           </button>
         </div>
 
-        {/* Cart Items (scrollable) */}
         {cartItems.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
             <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
               <IoBagHandleOutline size={40} className="text-gray-400" />
             </div>
             <h3 className="text-lg font-medium text-gray-800">Your cart is empty</h3>
-            <p className="text-sm text-gray-500 mt-1">Looks like you haven't added anything yet.</p>
+            <p className="text-sm text-gray-500 mt-1">Looks like you haven&apos;t added anything yet.</p>
             <button
               onClick={() => setOpenCart(false)}
               className="mt-6 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
@@ -71,8 +68,6 @@ const Cart = ({ setOpenCart }) => {
                 />
               ))}
             </div>
-
-            {/* Footer with total and checkout */}
             <div className="border-t p-4 bg-gray-50">
               <div className="flex justify-between items-center mb-4">
                 <span className="text-gray-600 font-medium">Subtotal</span>
@@ -96,8 +91,6 @@ const Cart = ({ setOpenCart }) => {
           </>
         )}
       </div>
-
-      {/* Optional: Add slide-in animation */}
       <style jsx>{`
         @keyframes slideInRight {
           from {

@@ -42,11 +42,11 @@ const AllOrders = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   useEffect(() => {
-    if (userInfo && userInfo._id && !isLoading) {
-      dispatch(getUserAllOrders(userInfo._id));
-      dispatch(setOrderItems([]));
-    }
-  }, [dispatch, userInfo?._id]);
+  if (userInfo && userInfo._id && !isLoading) {
+    dispatch(getUserAllOrders(userInfo._id));
+    dispatch(setOrderItems([]));
+  }
+}, [dispatch, userInfo?._id, isLoading]);
 
   const handleCloseSnackbar = () => {
     setOpenSnackbar(false);
@@ -238,14 +238,10 @@ const AllOrders = () => {
                 No orders yet
               </h3>
               <p className="text-gray-500 max-w-sm mx-auto">
-                You haven't placed any orders. Start shopping to see your orders here.
+                You haven&apos;t placed any orders. Start shopping to see your orders here.
               </p>
               <Link href="/" passHref>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  sx={{ mt: 3, textTransform: 'none' }}
-                >
+                <Button variant="contained" color="primary" sx={{ mt: 3, textTransform: 'none' }}>
                   Browse Products
                 </Button>
               </Link>

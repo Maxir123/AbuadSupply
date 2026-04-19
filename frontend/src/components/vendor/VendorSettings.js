@@ -19,7 +19,7 @@ import {
   useTheme,
 } from '@mui/material';
 import { Save, Edit } from '@mui/icons-material';
-
+import StoreIcon from '@mui/icons-material/Store';
 // Local imports (Redux slice and component)
 import { updateVendorAvatar, updateVendorInformation } from '@/redux/slices/vendorSlice';
 import Loader from './layout/Loader';
@@ -147,17 +147,9 @@ const VendorSettings = () => {
             {/* Avatar Section */}
             <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
               <Box sx={{ position: 'relative' }}>
-                <Avatar
-                  src={avatarSrc}
-                  sx={{
-                    width: 120,
-                    height: 120,
-                    border: '3px solid',
-                    borderColor: 'primary.main',
-                  }}
-                >
-                  {!avatarSrc && <StoreIcon />}
-                </Avatar>
+              <Avatar src={avatarSrc} sx={{ width: 120, height: 120, border: '3px solid', borderColor: 'primary.main' }}>
+                {!avatarSrc && <StoreIcon />}
+              </Avatar>
                 <IconButton
                   component="label"
                   sx={{

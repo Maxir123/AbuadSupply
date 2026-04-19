@@ -4,7 +4,11 @@ import { RiCloseLine } from "react-icons/ri";
 import Link from "next/link";
 import Image from "next/image";
 
-const SingleWishListCard = ({ data, removeFromWishListHandler, addToCartHandler }) => {
+const SingleWishListCard = ({
+  data,
+  removeFromWishListHandler,
+  addToCartHandler,
+}) => {
   const totalPrice = data.discountPrice;
 
   return (
@@ -15,25 +19,28 @@ const SingleWishListCard = ({ data, removeFromWishListHandler, addToCartHandler 
         title="Remove from wishlist"
         onClick={() => removeFromWishListHandler(data)}
       />
-      <Link href={`/product/${data._id}`} passHref legacyBehavior>
-        <a className="block">
-          <Image
-            src={data?.images?.[0]?.url || "/images/fallbackImage.jpg"}
-            alt={data?.name || "Product image"}
-            width={130}
-            height={130}
-            className="w-[130px] h-auto ml-2 mr-2 rounded-[5px]"
-            sizes="(max-width: 640px) 112px, 130px"
-            // unoptimized
-          />
-        </a>
+
+      {/* FIXED LINK (NO <a>, NO legacyBehavior) */}
+      <Link
+        href={`/product/${data._id}`}
+        className="block ml-2 mr-2"
+      >
+        <Image
+          src={data?.images?.[0]?.url || "/images/fallbackImage.jpg"}
+          alt={data?.name || "Product image"}
+          width={130}
+          height={130}
+          className="w-[130px] h-auto rounded-[5px]"
+        />
       </Link>
+
       <div className="pl-[5px] flex-1">
         <h1>{data.name}</h1>
-        <h4 className="font-[600] pt-3 text-[17px] text-[#d02222] font-Roboto">
+        <h4 className="font-[600] pt-3 text-[17px] text-[#d02222]">
           ${totalPrice}
         </h4>
       </div>
+
       <BsCartPlus
         size={20}
         className="cursor-pointer text-black"

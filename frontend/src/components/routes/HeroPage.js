@@ -10,32 +10,60 @@ const Slider = dynamic(() => import("react-slick"), { ssr: false });
 const bannerData = [
   {
     src: "/images/bannerImgOne.png",
-    discount: "Summer Sale - 30% OFF",
-    title: "Upgrade Your Tech Lifestyle",
-    subtitle: "Explore the latest in premium electronics and accessories.",
-    buttonText: "Shop Electronics",
-    color: "text-blue-400",
-    link: "/category/gadgets-electronics",   // <-- add link
+    eyebrow: "DEALS OF THE DAY",
+    title: "Shop the Best Deals Today",
+    subtitle: "Top brands. Low prices. Fast delivery.",
+    buttonText: "Shop Now",
+    link: "/category/gadgets-electronics",
+    bg: "from-amber-200 via-yellow-300 to-orange-400",
+    text: "text-slate-900",
+    badgeBg: "bg-amber-300/90",
   },
   {
     src: "/images/bannerImgThree.jpg",
-    discount: "Back to School",
-    title: "Fuel Your Knowledge",
-    subtitle: "Premium stationery and books to kickstart your semester.",
-    buttonText: "View Collection",
-    color: "text-red-500",
-    link: "/categories",    // <-- add link
+    eyebrow: "NEW ARRIVALS",
+    title: "New Arrivals. Better Choices.",
+    subtitle: "Explore the latest trends in tech, fashion, home & more.",
+    buttonText: "Explore Now",
+    link: "/categories",
+    bg: "from-sky-100 via-blue-200 to-cyan-200",
+    text: "text-slate-900",
+    badgeBg: "bg-sky-300/90",
   },
   {
     src: "/images/bannerImgFour.jpg",
-    discount: "Flash Deal: Buy 2 Get 1",
-    title: "Fast Global Shipping",
-    subtitle: "Delivering your favorite products right to your doorstep.",
-    buttonText: "Track Orders",
-    color: "text-yellow-500",
-    link: "/track-order",                    // <-- add link
+    eyebrow: "HOME & LIVING",
+    title: "Refresh Your Space, Elevate Your Life.",
+    subtitle: "Stylish home essentials for every corner of your home.",
+    buttonText: "Shop Home & Living",
+    link: "/category/home-living",
+    bg: "from-lime-100 via-emerald-100 to-green-200",
+    text: "text-emerald-950",
+    badgeBg: "bg-lime-300/90",
   },
 ];
+
+const PrevArrow = ({ onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    aria-label="Previous slide"
+    className="absolute left-4 md:left-8 top-1/2 z-20 -translate-y-1/2 h-10 w-10 md:h-12 md:w-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg flex items-center justify-center hover:bg-white transition-all duration-200 hover:scale-105"
+  >
+    <span className="text-2xl leading-none text-slate-800">‹</span>
+  </button>
+);
+
+const NextArrow = ({ onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    aria-label="Next slide"
+    className="absolute right-4 md:right-8 top-1/2 z-20 -translate-y-1/2 h-10 w-10 md:h-12 md:w-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg flex items-center justify-center hover:bg-white transition-all duration-200 hover:scale-105"
+  >
+    <span className="text-2xl leading-none text-slate-800">›</span>
+  </button>
+);
 
 const HeroPage = () => {
   const [activeSlide, setActiveSlide] = useState(0);
@@ -45,24 +73,33 @@ const HeroPage = () => {
     dots: true,
     infinite: true,
     autoplay: true,
-    autoplaySpeed: 5000,
+    autoplaySpeed: 5500,
     speed: 800,
     slidesToShow: 1,
     slidesToScroll: 1,
-    arrows: false,
-    beforeChange: (current, next) => setActiveSlide(next),
-    appendDots: (dots) => (
-      <div style={{ position: "absolute", bottom: "25px" }}>
-        <ul className="flex justify-center gap-2"> {dots} </ul>
-      </div>
-    ),
+    arrows: true,
+    prevArrow: <PrevArrow />,
+    nextArrow: <NextArrow />,
+    beforeChange: (_, next) => setActiveSlide(next),
     customPaging: (i) => (
-      <div
-        className={`w-3 h-3 rounded-full transition-all duration-300 ${
-          i === activeSlide ? "bg-white w-8" : "bg-white/50"
-        }`}
+      <button
+        className={`transition-all duration-300 rounded-full ${
+          i === activeSlide
+            ? "w-7 bg-slate-800"
+            : "w-2.5 bg-slate-400/70 hover:bg-slate-600/80"
+        } h-2.5`}
+        aria-label={`Go to slide ${i + 1}`}
       />
     ),
+    responsive: [
+      {
+        breakpoint: 768,
+        settings: {
+          arrows: false,
+          dots: true,
+        },
+      },
+    ],
   };
 
   const handleButtonClick = (link) => {
@@ -70,41 +107,90 @@ const HeroPage = () => {
   };
 
   return (
-    <div className="w-full relative overflow-hidden">
+    <div className="w-full overflow-hidden">
+      <style jsx global>{`
+        .slick-dots {
+          position: relative;
+          bottom: 0;
+          margin-top: 1rem;
+          margin-bottom: 0.5rem;
+        }
+        .slick-dots li {
+          margin: 0 4px;
+          width: auto;
+          height: auto;
+        }
+        .slick-dots li button {
+          display: none;
+        }
+        .slick-dots li.slick-active button {
+          display: none;
+        }
+        @media (min-width: 768px) {
+          .slick-dots {
+            margin-top: 1.25rem;
+            margin-bottom: 0.75rem;
+          }
+        }
+      `}</style>
+
       <Slider {...settings}>
         {bannerData.map((item, index) => (
           <div key={index} className="outline-none">
-            <div className="relative w-full h-[400px] md:h-[600px]">
-              <Image
-                src={item.src}
-                alt={item.title}
-                fill
-                className="object-cover"
-                priority={index === 0}
-              />
-              <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/30 to-transparent" />
-              <div className="absolute inset-0 flex flex-col items-start justify-center px-10 md:px-24">
-                <div className={`transition-all duration-700 transform ${
-                  activeSlide === index ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0"
-                }`}>
-                  <span className={`uppercase tracking-widest font-semibold text-sm md:text-base ${item.color}`}>
-                    {item.discount}
-                  </span>
-                  <h2 className="text-white text-3xl md:text-6xl font-extrabold mt-2 mb-4 max-w-lg leading-tight">
-                    {item.title}
-                  </h2>
-                  <p className="text-gray-200 text-sm md:text-lg max-w-md mb-8">
-                    {item.subtitle}
-                  </p>
-                  <button
-                    onClick={() => handleButtonClick(item.link)}
-                    className="bg-white text-black px-8 py-3 rounded-full font-bold hover:bg-black hover:text-white transition-colors duration-300 shadow-lg"
-                  >
-                    {item.buttonText}
-                  </button>
+            <section
+              className={`relative w-full overflow-hidden bg-gradient-to-br ${item.bg}`}
+            >
+              <div className="absolute inset-0 bg-white/5" />
+
+              <div className="relative z-10 px-4 py-6 sm:px-6 md:py-8 lg:py-10">
+                <div className="mx-auto max-w-7xl">
+                  <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
+                    {/* Text content */}
+                    <div className="flex flex-col justify-center text-center md:text-left">
+                      <div
+                        className={`mb-3 inline-flex w-fit items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold shadow-sm backdrop-blur-sm md:px-3.5 md:py-1.5 md:text-sm ${item.badgeBg} ${item.text} mx-auto md:mx-0`}
+                      >
+                        <span className="text-sm">⚡</span>
+                        <span>{item.eyebrow}</span>
+                      </div>
+
+                      <h2
+                        className={`max-w-2xl text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl md:text-4xl lg:text-5xl ${item.text}`}
+                      >
+                        {item.title}
+                      </h2>
+
+                      <p
+                        className={`mt-3 max-w-lg text-sm leading-relaxed sm:text-base md:text-lg ${item.text}/85 mx-auto md:mx-0`}
+                      >
+                        {item.subtitle}
+                      </p>
+
+                      <button
+                        onClick={() => handleButtonClick(item.link)}
+                        className="mt-5 w-fit rounded-full bg-slate-900 px-6 py-2 text-sm font-semibold text-white shadow-md transition-all duration-200 hover:scale-105 hover:bg-slate-800 active:scale-95 md:mt-6 md:px-7 md:py-2.5"
+                      >
+                        {item.buttonText}
+                      </button>
+                    </div>
+
+                    {/* Image - smaller */}
+                    <div className="relative flex items-center justify-center">
+                      <div className="relative h-[160px] w-full max-w-sm sm:h-[180px] md:h-[200px] lg:h-[220px]">
+                        <Image
+                          src={item.src}
+                          alt={item.title}
+                          fill
+                          priority={index === 0}
+                          className="object-contain drop-shadow-lg"
+                          sizes="(max-width: 768px) 100vw, 40vw"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
+            </section>
           </div>
         ))}
       </Slider>
